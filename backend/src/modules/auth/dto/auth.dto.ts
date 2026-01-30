@@ -17,3 +17,15 @@ export class RegisterDTO{
     @IsNotEmpty()
     status: string;
 }
+
+export class LoginDTO{
+    @IsNotEmpty()
+    @IsEmail()
+    email_account: string;
+
+    @Matches(/^[\+]?[()]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}$/)
+    phone_account: string;
+    
+    @IsNotEmpty()
+    password: string;
+}

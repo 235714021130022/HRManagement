@@ -11,4 +11,9 @@ export class AuthController{
     register (@Body() body: RegisterDTO): Promise<Employee>{
         return this.authService.register(body);
     }
+
+    @Post('login')
+    login(@Body() body: RegisterDTO):Promise<any>{
+        return this.authService.login(body);
+    }
 }
