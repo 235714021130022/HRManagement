@@ -1,7 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Avatar,
-  Badge,
   Box,
   Button,
   Center,
@@ -9,11 +8,19 @@ import {
   Flex,
   HStack,
   IconButton,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
   Modal,
   ModalBody,
   ModalCloseButton,
   ModalContent,
+  ModalFooter,
+  ModalHeader,
   ModalOverlay,
+  Radio,
+  RadioGroup,
   Spinner,
   Stack,
   Tab,
@@ -29,25 +36,31 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import type { ICandidate } from "../types";
 import { useCandidateByID } from "../api/get";
+import {
+  APPLICATION_STATUS_STEPS,
+  getApplicationStatusIndex,
+  useUpdateApplicationStatus,
+} from "../api/update_status";
 import { formatDateShort, formatMonth } from "../../../types";
 import InfoRow from "../components/InforRow";
+import JobCandidate from "../components/JobCandidate";
+import ReviewCandidate from "../components/ReviewCandidate";
 import Stars from "../components/Star";
-import CandidateCvTab, { type CandidateCvTabHandle } from "../components/CandidateCVTabs";
+import CandidateCvTab, {
+  type CandidateCvTabHandle,
+} from "../components/CandidateCVTabs";
 import { FiUploadCloud } from "react-icons/fi";
-
-
-
+import { BsThreeDotsVertical } from "react-icons/bs";
+import theme from "../../../theme";
 
 export default function CandidateDetail() {
   const { id: paramId } = useParams();
   const navigate = useNavigate();
-      const inputRef = useRef<HTMLInputElement | null>(null);
-const [isUploading, setIsUploading] = useState(false);
   const candidateId = paramId ?? "";
-    const cvTabRef = useRef<CandidateCvTabHandle | null>(null);
-    const pickFile = () => {
+  const cvTabRef = useRef<CandidateCvTabHandle | null>(null);
+  const pickFile = () => {
     cvTabRef.current?.pickFile();
-    };
+  };
   const {
     data: candidate,
     isLoading,
@@ -55,22 +68,80 @@ const [isUploading, setIsUploading] = useState(false);
     refetch,
   } = useCandidateByID(candidateId, { enabled: !!candidateId });
 
+  const updateStatusMutation = useUpdateApplicationStatus({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
   const onClose = () => {
     navigate(-1);
-    // hoặc muốn chắc chắn về list:
+    // or force navigation back to the list:
     // navigate("/candidates");
   };
 
   const appliedDate = useMemo(
     () => formatDateShort((candidate as ICandidate | undefined)?.date_applied),
-    [candidate]
+    [candidate],
   );
   const dob = useMemo(
     () => formatDateShort((candidate as ICandidate | undefined)?.date_of_birth),
-    [candidate]
+    [candidate],
   );
 
-  // tab chính
+  const latestApplication = useMemo(
+    () => (candidate as ICandidate | undefined)?.statusApplication?.[0],
+    [candidate],
+  );
+
+  const applicationTitle = useMemo(() => {
+    return (
+      latestApplication?.recruitment_infor?.post_title ||
+      latestApplication?.recruitment_infor?.internal_title ||
+      "No job posting yet"
+    );
+  }, [latestApplication]);
+
+  const applicationStatus = latestApplication?.status || "No status yet";
+
+  const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState<string>(
+    APPLICATION_STATUS_STEPS[0].value,
+  );
+
+  const currentStageIndex = useMemo(
+    () => getApplicationStatusIndex(latestApplication?.status),
+    [latestApplication],
+  );
+
+  const openStatusModal = () => {
+    if (!latestApplication?.id) return;
+    const defaultStatus =
+      currentStageIndex >= 0
+        ? APPLICATION_STATUS_STEPS[currentStageIndex].value
+        : APPLICATION_STATUS_STEPS[0].value;
+    setSelectedStatus(defaultStatus);
+    setIsStatusModalOpen(true);
+  };
+
+  const handleSubmitStatus = () => {
+    if (!latestApplication?.id) return;
+    updateStatusMutation.mutate(
+      {
+        id: latestApplication.id,
+        data: {
+          status: selectedStatus,
+        },
+      },
+      {
+        onSuccess: () => {
+          setIsStatusModalOpen(false);
+        },
+      },
+    );
+  };
+
+  // main tabs
   const [mainTab, setMainTab] = useState(0);
   const [profileSubTab, setProfileSubTab] = useState(0);
 
@@ -84,7 +155,7 @@ const [isUploading, setIsUploading] = useState(false);
   return (
     <Modal isOpen={true} onClose={onClose} isCentered size="6xl">
       <ModalOverlay />
-      <ModalContent maxW="1200px" h="90vh" overflow="hidden">
+      <ModalContent maxW="1250px" h="90vh" overflow="hidden">
         <ModalCloseButton />
 
         <ModalBody p={0} h="100%">
@@ -110,14 +181,18 @@ const [isUploading, setIsUploading] = useState(false);
             <Flex h="100%">
               {/* LEFT PANE */}
               <Box
-                w="360px"
+                w="380px"
                 borderRight="1px solid"
                 borderColor="gray.200"
                 p={4}
                 overflowY="auto"
               >
                 <HStack spacing={3} align="flex-start">
-                  <Avatar  bg="#334371" color="white" name={candidate.candidate_name ?? ""} />
+                  <Avatar
+                    bg="#334371"
+                    color="white"
+                    name={candidate.candidate_name ?? ""}
+                  />
 
                   <Box minW={0} flex="1">
                     <HStack spacing={2}>
@@ -136,7 +211,7 @@ const [isUploading, setIsUploading] = useState(false);
                   </Box>
 
                   <IconButton
-                    aria-label="Đặt lịch"
+                    aria-label="Schedule"
                     icon={<FaRegCalendarAlt />}
                     size="sm"
                     variant="outline"
@@ -145,166 +220,191 @@ const [isUploading, setIsUploading] = useState(false);
 
                 <Divider my={4} />
 
-                {/* THÔNG TIN ỨNG TUYỂN */}
+                {/* APPLICATION INFORMATION */}
                 <Text fontWeight="700" mb={2}>
-                  THÔNG TIN ỨNG TUYỂN
+                  APPLICATION INFORMATION
                 </Text>
 
-                <Box border="1px solid" borderColor="gray.200" borderRadius="md" p={3}>
+                <Box
+                  border="1px solid"
+                  borderColor="gray.200"
+                  borderRadius="md"
+                  p={3}
+                >
                   <HStack justify="space-between" align="flex-start">
                     <VStack align="flex-start" spacing={1}>
                       <HStack>
-                        <Box w="8px" h="8px" borderRadius="full" bg="green.400" />
                         <Text color="#334371" fontWeight="600" fontSize="sm">
-                          Business Analysis
+                          {applicationTitle}
                         </Text>
                       </HStack>
 
                       <Text fontSize="sm" color="gray.600">
-                        Phỏng vấn
+                        {applicationStatus}
                       </Text>
 
                       <HStack spacing={1} mt={1}>
-                        <Box w="24px" h="6px" borderRadius="full" bg="green.400" />
-                        <Box w="24px" h="6px" borderRadius="full" bg="green.400" />
-                        <Box w="24px" h="6px" borderRadius="full" bg="green.400" />
-                        <Box w="24px" h="6px" borderRadius="full" bg="gray.200" />
-                        <Box w="24px" h="6px" borderRadius="full" bg="gray.200" />
+                        {APPLICATION_STATUS_STEPS.map((stage, index) => (
+                          <Box
+                            key={stage.value}
+                            w="24px"
+                            h="6px"
+                            borderRadius="full"
+                            bg={
+                              index <= currentStageIndex
+                                ? "green.400"
+                                : "gray.200"
+                            }
+                            title={stage.label}
+                          />
+                        ))}
                       </HStack>
                     </VStack>
 
-                    <Button size="sm" colorScheme="green" variant="outline">
-                      Chuyển vòng
-                    </Button>
-                  </HStack>
-
-                  <Divider my={3} />
-
-                  <InfoRow
-                    label="Nhân sự khai thác"
-                    value={
-                      <HStack spacing={2}>
-                        <Avatar size="xs" name="Giang Do" />
-                        <Text fontSize="sm" noOfLines={1}>
-                          Giang Do Thi Giang Do Thi
-                        </Text>
-                      </HStack>
-                    }
-                  />
-
-                  <InfoRow
-                    label="Gắn thẻ"
-                    value={
-                      <Button size="xs" variant="outline">
-                        +
+                    <Flex alignItems={"center"} gap={1}>
+                      <Button
+                        size="sm"
+                        background={"#334371"}
+                        color={"white"}
+                        onClick={openStatusModal}
+                        isDisabled={!latestApplication?.id}
+                      >
+                        UPDATE
                       </Button>
-                    }
-                  />
+                      <Menu placement="bottom-end">
+                        <MenuButton
+                          as={IconButton}
+                          icon={<BsThreeDotsVertical />}
+                          variant="ghost"
+                          size="sm"
+                          aria-label="Options"
+                        />
+
+                        <MenuList w={"fit-content"} minW={"unset"}>
+                          <MenuItem fontSize={"sm"}>
+                            Move to Another Job
+                          </MenuItem>
+
+                          <MenuItem fontSize={"sm"}>
+                            Move to Talent Pool
+                          </MenuItem>
+                        </MenuList>
+                      </Menu>
+                    </Flex>
+                  </HStack>
                 </Box>
 
                 <Divider my={4} />
 
-                {/* THÔNG TIN CÁ NHÂN */}
+                {/* PERSONAL INFORMATION */}
                 <Text fontWeight="700" mb={2}>
-                  THÔNG TIN CÁ NHÂN
+                  PERSONAL INFORMATION
                 </Text>
 
                 <VStack align="stretch" spacing={3}>
-                  <InfoRow label="Số điện thoại" value={candidate.phone_number ?? ""} />
+                  <InfoRow
+                    label="Phone Number"
+                    value={candidate.phone_number ?? ""}
+                  />
                   <InfoRow
                     label="Email"
                     value={
-                      <Text fontSize="sm" color="#334371" noOfLines={1}>
+                      <Text fontSize="sm" color={theme.colors.primary} noOfLines={1}>
                         {candidate.email ?? "-"}
                       </Text>
                     }
                   />
-                  <InfoRow label="Ngày sinh" value={dob} />
-                  <InfoRow label="Giới tính" value={candidate.gender ?? ""} />
-                  <InfoRow label="Địa chỉ" value={candidate.address ?? ""} />
+                  <InfoRow label="Date of Birth" value={dob} />
+                  <InfoRow label="Gender" value={candidate.gender ?? ""} />
+                  <InfoRow label="Address" value={candidate.address ?? ""} />
                 </VStack>
 
                 <Divider my={4} />
 
-                {/* KINH NGHIỆM */}
-<Text fontWeight="700" mb={2}>
-  WORK EXPERIENCE
-</Text>
-
-<Stack spacing={4}>
-  {candidate?.candidateExperiences?.length ? (
-    candidate.candidateExperiences
-      .filter((exp) => exp.is_active !== false)
-      .map((exp, idx, arr) => {
-        const from = exp.from_month ? formatMonth(exp.from_month) : "-";
-        const to = exp.to_month ? formatMonth(exp.to_month) : "Present";
-        const isLast = idx === arr.length - 1;
-
-        return (
-          <Flex key={exp.id} gap={1} align="flex-start">
-            {/* CỘT THỜI GIAN (LEFT) */}
-            <Box w="120px" flexShrink={0} pt="1px">
-              <Text fontSize="sm" color="gray.600" fontWeight="600">
-                {from}
-              </Text>
-              <Text justifyContent={'center'} alignItems={'center'}>–</Text>
-              <Text fontSize="sm" color="gray.500">
-                {to}
-              </Text>
-            </Box>
-
-            {/* TIMELINE (DOT + LINE) */}
-            {/* <Flex direction="column" align="center" pt="6px">
-              <Box w="10px" h="10px" borderRadius="full" bg="#334371" />
-              {!isLast && <Box w="2px" flex="1" minH="42px" bg="gray.200" mt="2px" />}
-            </Flex> */}
-
-            {/* NỘI DUNG (RIGHT) */}
-            <Box flex="1" pb={isLast ? 0 : 2}>
-              <Text fontWeight="600" color="gray.800">
-                {exp.position || "Vị trí chưa cập nhật"}
-              </Text>
-
-              <Text fontSize="sm" color="gray.600" fontWeight="600" mt="2px">
-                {exp.company_name || "Tên tổ chức chưa cập nhật"}
-              </Text>
-
-              {exp.job_description ? (
-                <Box mt={2}>
-                  {/* nếu mô tả của bạn là text dài, giữ nguyên */}
-                  <Text fontSize="sm" color="gray.700" whiteSpace="pre-line">
-                    {exp.job_description}
-                  </Text>
-
-                  {/* nếu muốn giống TopCV hơn: bullet list (khi desc có xuống dòng) */}
-                  {/* {exp.job_description
-                    .split("\n")
-                    .filter(Boolean)
-                    .map((line, i) => (
-                      <HStack key={i} align="flex-start" spacing={2} mt={1}>
-                        <Box mt="7px" w="5px" h="5px" borderRadius="full" bg="gray.400" />
-                        <Text fontSize="sm" color="gray.700">
-                          {line}
-                        </Text>
-                      </HStack>
-                    ))} */}
-                </Box>
-              ) : (
-                <Text fontSize="sm" color="gray.500" mt={2}>
-                  (Chưa có mô tả)
+                {/* WORK EXPERIENCE */}
+                <Text fontWeight="700" mb={2}>
+                  WORK EXPERIENCE
                 </Text>
-              )}
-            </Box>
-          </Flex>
-        );
-      })
-  ) : (
-    <Text fontSize="sm" color="gray.500">
-      No work experience yet.
-    </Text>
-  )}
-</Stack>           
-                </Box>
+
+                <Stack spacing={4}>
+                  {candidate?.candidateExperiences?.length ? (
+                    candidate.candidateExperiences
+                      .filter((exp) => exp.is_active !== false)
+                      .map((exp, idx, arr) => {
+                        const from = exp.from_month
+                          ? formatMonth(exp.from_month)
+                          : "-";
+                        const to = exp.to_month
+                          ? formatMonth(exp.to_month)
+                          : "Present";
+                        const isLast = idx === arr.length - 1;
+
+                        return (
+                          <Flex key={exp.id} gap={1} align="flex-start">
+                            {/* TIME COLUMN (LEFT) */}
+                            <Box w="120px" flexShrink={0} pt="1px">
+                              <Text
+                                fontSize="sm"
+                                color="gray.600"
+                                fontWeight="600"
+                              >
+                                {from}
+                              </Text>
+                              <Text
+                                justifyContent={"center"}
+                                alignItems={"center"}
+                              >
+                                –
+                              </Text>
+                              <Text fontSize="sm" color="gray.500">
+                                {to}
+                              </Text>
+                            </Box>
+
+
+                            {/* CONTENT (RIGHT) */}
+                            <Box flex="1" pb={isLast ? 0 : 2}>
+                              <Text fontWeight="600" color="gray.800">
+                                {exp.position || "Position not updated"}
+                              </Text>
+
+                              <Text
+                                fontSize="sm"
+                                color="gray.600"
+                                fontWeight="600"
+                                mt="2px"
+                              >
+                                {exp.company_name ||
+                                  "Organization name not updated"}
+                              </Text>
+
+                              {exp.job_description ? (
+                                <Box mt={2}>
+                                  {/* if the description is long text, keep it as-is */}
+                                  <Text
+                                    fontSize="sm"
+                                    color="gray.700"
+                                    whiteSpace="pre-line"
+                                  >
+                                    {exp.job_description}
+                                  </Text>
+                                </Box>
+                              ) : (
+                                <Text fontSize="sm" color="gray.500" mt={2}>
+                                  (No description yet)
+                                </Text>
+                              )}
+                            </Box>
+                          </Flex>
+                        );
+                      })
+                  ) : (
+                    <Text fontSize="sm" color="gray.500">
+                      No work experience yet.
+                    </Text>
+                  )}
+                </Stack>
+              </Box>
 
               {/* RIGHT PANE */}
               <Box flex="1" overflow="hidden">
@@ -316,23 +416,37 @@ const [isUploading, setIsUploading] = useState(false);
                   display="flex"
                   flexDirection="column"
                 >
-                  <Box px={4} pt={3} borderBottom="1px solid" borderColor="gray.200">
-                    <TabList whiteSpace="nowrap" >
-                      <Tab fontSize={'15'} color={'#334371'} fontWeight={'700'}>HỒ SƠ ỨNG VIÊN</Tab>
-                      <Tab fontSize={'15'} color={'#334371'} fontWeight={'700'}>EMAIL</Tab>
-                      <Tab fontSize={'15'} color={'#334371'} fontWeight={'700'}>ĐÁNH GIÁ</Tab>
-                      <Tab fontSize={'15'} color={'#334371'} fontWeight={'700'}>CÔNG VIỆC</Tab>
-                      <Tab fontSize={'15'} color={'#334371'} fontWeight={'700'}>LỊCH SỬ</Tab>
+                  <Box
+                    px={4}
+                    pt={3}
+                    borderBottom="1px solid"
+                    borderColor="gray.200"
+                  >
+                    <TabList whiteSpace="nowrap">
+                      <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
+                        CANDIDATE PROFILE
+                      </Tab>
+                      <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
+                        EMAIL
+                      </Tab>
+                      <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
+                        REVIEWS
+                      </Tab>
+                      <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
+                        JOBS
+                      </Tab>
+                      <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
+                        HISTORY
+                      </Tab>
                     </TabList>
                   </Box>
 
                   <TabPanels flex="1" overflow="hidden">
-                    {/* HỒ SƠ ỨNG VIÊN */}
+                    {/* CANDIDATE PROFILE */}
                     <TabPanel p={0} h="100%">
                       <Tabs
                         index={profileSubTab}
                         onChange={setProfileSubTab}
-                        
                         h="100%"
                         display="flex"
                         flexDirection="column"
@@ -340,21 +454,15 @@ const [isUploading, setIsUploading] = useState(false);
                         <HStack px={4} py={3} justify="space-between">
                           <TabList>
                             <Tab
-                                fontWeight="600"
-                                _hover={{ color: "#334371" }}
-                                _selected={{
-                                    color: "#334371",
-                                    borderBottom: "2px solid #334371",
-                                }}
-                                >CV ứng viên</Tab>
-                            <Tab
-                                fontWeight="600"
-                                _hover={{ color: "#334371" }}
-                                _selected={{
-                                    color: "#334371",
-                                    borderBottom: "2px solid #334371",
-                                }}
-                                >Thông tin ứng tuyển</Tab>
+                              fontWeight="600"
+                              _hover={{ color: "#334371" }}
+                              _selected={{
+                                color: "#334371",
+                                borderBottom: "2px solid #334371",
+                              }}
+                            >
+                              Candidate CV
+                            </Tab>
                           </TabList>
 
                           <Button
@@ -362,76 +470,21 @@ const [isUploading, setIsUploading] = useState(false);
                             leftIcon={<FiUploadCloud />}
                             size="sm"
                             variant="outline"
-                            >
-                            Tải lên CV mới
-                            </Button>
+                          >
+                            UPLOAD CV
+                          </Button>
                         </HStack>
 
                         <TabPanels flex="1" overflow="auto">
-
-                        <TabPanel p={0}>
+                          <TabPanel p={0}>
                             <TabPanel p={0}>
-                                <CandidateCvTab
-                                    ref={cvTabRef}
-                                    candidateId={candidateId}
-                                    cvFile={candidate.cv_file}
-                                    onUploaded={refetch}
-                                    />
-                                </TabPanel>
-                        </TabPanel>
-                          <TabPanel>
-                            <VStack align="stretch" spacing={4}>
-                              <Box
-                                border="1px solid"
-                                borderColor="gray.200"
-                                borderRadius="md"
-                                p={4}
-                              >
-                                <Text fontWeight="700" mb={3}>
-                                  Thông tin ứng tuyển
-                                </Text>
-                                <VStack align="stretch" spacing={3}>
-                                  <InfoRow label="Vị trí" value={"Business Analysis"} />
-                                  <InfoRow label="Ngày apply" value={appliedDate} />
-                                  <InfoRow
-                                    label="Trạng thái"
-                                    value={
-                                      <Badge
-                                        colorScheme={candidate.is_active ? "green" : "gray"}
-                                        variant="subtle"
-                                      >
-                                        {candidate.is_active ? "ACTIVE" : "INACTIVE"}
-                                      </Badge>
-                                    }
-                                  />
-                                  <InfoRow
-                                    label="Tiềm năng"
-                                    value={
-                                      <Badge
-                                        colorScheme={candidate.is_potential ? "purple" : "gray"}
-                                        variant="subtle"
-                                      >
-                                        {candidate.is_potential ? "POTENTIAL" : "NORMAL"}
-                                      </Badge>
-                                    }
-                                  />
-                                </VStack>
-                              </Box>
-
-                              <Box
-                                border="1px solid"
-                                borderColor="gray.200"
-                                borderRadius="md"
-                                p={4}
-                              >
-                                <Text fontWeight="700" mb={3}>
-                                  Ghi chú
-                                </Text>
-                                <Text fontSize="sm" color="gray.500">
-                                  (chỗ này sau bạn nhét note/comment của candidate)
-                                </Text>
-                              </Box>
-                            </VStack>
+                              <CandidateCvTab
+                                ref={cvTabRef}
+                                candidateId={candidateId}
+                                cvFile={candidate.cv_file}
+                                onUploaded={refetch}
+                              />
+                            </TabPanel>
                           </TabPanel>
                         </TabPanels>
                       </Tabs>
@@ -443,37 +496,29 @@ const [isUploading, setIsUploading] = useState(false);
                         Email
                       </Text>
                       <Text fontSize="sm" color="gray.500">
-                        (sau bạn build inbox/outbox theo candidate)
+                        (Build candidate inbox/outbox here later.)
                       </Text>
                     </TabPanel>
 
-                    {/* ĐÁNH GIÁ */}
+                    {/* REVIEWS */}
                     <TabPanel p={4} h="100%" overflow="auto">
-                      <Text fontWeight="700" mb={2}>
-                        Đánh giá
-                      </Text>
-                      <Text fontSize="sm" color="gray.500">
-                        (list đánh giá/phỏng vấn, rating, form add review)
-                      </Text>
+                      <ReviewCandidate candidateId={candidateId} />
                     </TabPanel>
 
-                    {/* CÔNG VIỆC */}
+                    {/* JOBS */}
                     <TabPanel p={4} h="100%" overflow="auto">
-                      <Text fontWeight="700" mb={2}>
-                        Công việc
-                      </Text>
-                      <Text fontSize="sm" color="gray.500">
-                        (todo/task liên quan candidate)
-                      </Text>
+                      <JobCandidate
+                        jobCandidates={candidate.jobCandidates ?? []}
+                      />
                     </TabPanel>
 
-                    {/* LỊCH SỬ */}
+                    {/* HISTORY */}
                     <TabPanel p={4} h="100%" overflow="auto">
                       <Text fontWeight="700" mb={2}>
-                        Lịch sử
+                        History
                       </Text>
                       <Text fontSize="sm" color="gray.500">
-                        (audit log: chuyển vòng, sửa info, upload CV...)
+                        (Audit log: status changes, info edits, CV uploads...)
                       </Text>
                     </TabPanel>
                   </TabPanels>
@@ -483,6 +528,64 @@ const [isUploading, setIsUploading] = useState(false);
           )}
         </ModalBody>
       </ModalContent>
+
+      <Modal
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+        isCentered
+        size="sm"
+      >
+        <ModalOverlay bg="blackAlpha.300" />
+        <ModalContent>
+          <ModalHeader textAlign="center">UPDATE STATUS</ModalHeader>
+          <ModalBody>
+            <RadioGroup value={selectedStatus} onChange={setSelectedStatus}>
+              <VStack align="stretch" spacing={3}>
+                {APPLICATION_STATUS_STEPS.map((step) => (
+                  <Radio
+                    key={step.value}
+                    value={step.value}
+                    sx={{
+                      ".chakra-radio__control": {
+                        borderColor: "gray.400", // default border
+                        _hover: { borderColor: "#334371" },
+                        _checked: {
+                          bg: "#334371",
+                          borderColor: "#334371", // checked border
+                        },
+                        _focusVisible: {
+                          boxShadow: "0 0 0 3px rgba(51, 67, 113, 0.25)",
+                        },
+                      },
+                    }}
+                  >
+                    {step.label}
+                  </Radio>
+                ))}
+              </VStack>
+            </RadioGroup>
+          </ModalBody>
+
+          <ModalFooter>
+            <HStack spacing={2}>
+              <Button
+                variant="ghost"
+                onClick={() => setIsStatusModalOpen(false)}
+              >
+                CANCEL
+              </Button>
+              <Button
+                background={"#334371"}
+                color={"white"}
+                onClick={handleSubmitStatus}
+                isLoading={updateStatusMutation.isPending}
+              >
+                SAVE
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Modal>
   );
 }

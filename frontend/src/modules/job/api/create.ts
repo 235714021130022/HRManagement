@@ -1,0 +1,33 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { URL_API_JOBS } from "../../../constant/config";
+import apiClient from "../../../lib/api";
+import type { MutationConfig } from "../../../lib/react-query";
+import type { IJob } from "../types";
+
+export type CreateJobDTO = Omit<IJob, "id" | "created_at" | "updated_at" | "employee" | "jobCandidates"> & {
+	employee_id: string;
+	candidate_ids?: string[];
+};
+
+export const createJob = async (data: CreateJobDTO): Promise<IJob> => {
+	const res = await apiClient.post(URL_API_JOBS, data);
+	const payload = res.data?.data ?? res.data;
+	const raw = payload?.data ?? payload;
+	return raw as IJob;
+};
+
+type UseCreateJobOptions = {
+	config?: MutationConfig<typeof createJob>;
+};
+
+export const useCreateJob = ({ config }: UseCreateJobOptions = {}) => {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: createJob,
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+		},
+		...config,
+	});
+};

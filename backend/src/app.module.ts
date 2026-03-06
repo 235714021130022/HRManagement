@@ -21,6 +21,8 @@ import { JobModule } from './modules/job/job.module';
 import { SkillModule } from './modules/skill/skill.module';
 import { CompanyRegisterModule } from './modules/company_register/company_register.module';
 import { CandidateReviewModule } from './modules/candidate_review/candidate_review.module';
+import { ApplicationModule } from './modules/application/application.module';
+import { AuditLogModule } from './modules/audit_log/audit_log.module';
 
 @Module({
   imports: [
@@ -43,7 +45,9 @@ import { CandidateReviewModule } from './modules/candidate_review/candidate_revi
     JobModule,
     SkillModule,
     CompanyRegisterModule,
-    CandidateReviewModule
+    CandidateReviewModule,
+    ApplicationModule,
+    AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],

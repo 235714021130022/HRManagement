@@ -1,4 +1,5 @@
 import type { IEmployee } from "../../employee/types";
+import type { IJobCandidates } from "../../job/types";
 import type { IRecruitmentInfor } from "../../recruit_inf/types";
 
 export interface ICandidate {
@@ -16,9 +17,7 @@ export interface ICandidate {
   district?: string | null;
   date_applied?: Date | null;
 
-  position_applied_id?: string | null;
   referrer_id?: string | null;
-  recruitment_infor_id?: string | null;
 
   is_active: boolean;
   is_potential: boolean;
@@ -36,12 +35,12 @@ export interface ICandidate {
   recruitment_infor?: IRecruitmentInfor | null;
   referrer?: IEmployee | null;
   status: string
-//   positionPost?: ISettingPositionPosts | null;
 //   potential?: ISettingPotentialType | null;
 
   candidateExperiences?: ICandidateExperience[];
+  statusApplication?: IApplycation[];
 //   schedules?: ISchedulesCandidates[];
-//   jobCandidates?: IJobCandidates[];
+  jobCandidates?: IJobCandidates[];
 //   candidateSkill?: ICandidateSkill[];
 }
 
@@ -58,4 +57,30 @@ export interface ICandidateExperience {
   job_description?: string
 
   is_active?: boolean
+}
+
+export interface IApplycation {
+  id: string;
+
+  candidate_id: string;
+  recruitment_infor_id: string;
+  
+  status: string;
+  note?: string | null;
+  recruitment_infor?: Pick<IRecruitmentInfor, 'id' | 'post_title' | 'internal_title'> | null;
+}
+
+export interface ICandidateReview {
+  id: string;
+  candidate_id: string;
+  reviewer_id: string;
+  rating: number | string;
+  comment?: string | null;
+  is_active?: boolean;
+  created_at?: string | Date;
+  updated_at?: string | Date;
+  Reviewer?: {
+    id: string;
+    employee_name?: string | null;
+  } | null;
 }

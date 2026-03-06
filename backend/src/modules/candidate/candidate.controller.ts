@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -20,6 +21,7 @@ import { CandidateFilterType } from './dto/filter_type';
 import { CandidatePaginType } from './dto/pagin_type';
 import { UpdateCandidateDto } from './dto/update';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { extractActorFromRequest } from 'src/common/utils/request-actor.util';
 import { diskStorage } from 'multer';
 import path from 'path';
 import type { Response } from "express";
@@ -54,8 +56,9 @@ export class CandidateController {
   constructor(private readonly candidateService: CandidateService) {}
 
   @Post()
-  create(@Body() data: CreateCandidateDto): Promise<Candidate> {
-    return this.candidateService.create(data);
+  create(@Body() data: CreateCandidateDto, @Req() req: any): Promise<Candidate> {
+    const actor = extractActorFromRequest(req);
+    return this.candidateService.create(data, actor);
   }
   @Get(":id/cv")
   async getCv(@Param("id") id: string, @Res() res: Response) {
@@ -83,13 +86,16 @@ export class CandidateController {
   update(
     @Param('id') id: string,
     @Body() body: UpdateCandidateDto,
+    @Req() req: any,
   ): Promise<Candidate> {
-    return this.candidateService.update(id, body);
+    const actor = extractActorFromRequest(req);
+    return this.candidateService.update(id, body, actor);
   }
 
   @Delete(':id')
-  delete(@Param('id') id: string): Promise<Candidate> {
-    return this.candidateService.delete(id);
+  delete(@Param('id') id: string, @Req() req: any): Promise<Candidate> {
+    const actor = extractActorFromRequest(req);
+    return this.candidateService.delete(id, actor);
   }
 
   @Post('upload-cv')
@@ -97,14 +103,13 @@ export class CandidateController {
   async uploadCvPost(
     @UploadedFile() file: Express.Multer.File,
     @Body('candidate_id') candidateId: string,
+    @Req() req: any,
   ) {
     if (!candidateId) throw new BadRequestException('candidate_id is required');
     if (!file) throw new BadRequestException('cv file is required');
 
-    const updated = await this.candidateService.replaceCv(
-      candidateId,
-      file.filename,
-    );
+    const actor = extractActorFromRequest(req);
+    const updated = await this.candidateService.replaceCv(candidateId, file.filename, actor);
 
     return {
       message: 'Upload CV success',
@@ -119,10 +124,12 @@ export class CandidateController {
   async uploadCvPut(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
   ) {
     if (!file) throw new BadRequestException('cv file is required');
 
-    const updated = await this.candidateService.replaceCv(id, file.filename);
+    const actor = extractActorFromRequest(req);
+    const updated = await this.candidateService.replaceCv(id, file.filename, actor);
 
     return {
       message: 'Replace CV success',

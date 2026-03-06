@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { CandidateReviewService } from "./candidate_review.service";
 import { CreateCandidateReviewDto } from "./dto/create";
 import { UpdateCandidateReviewDto } from "./dto/update";
+import { CandidateReviewService } from "./candidate_review.service";
 
 @Controller()
 export class CandidateReviewController {
@@ -20,12 +20,14 @@ export class CandidateReviewController {
         secret: process.env.ACCESS_TOKEN_SECRET,
         });
 
-    const userId = payload.id;     // tuỳ payload bạn sign
-    const role = payload.roles?.[0];
+    const userId = payload.id; // token payload user id
+    const rawRole = payload.roles?.[0];
+    const role =
+      typeof rawRole === "string"
+        ? rawRole
+        : rawRole?.role?.name_role || rawRole?.name_role || rawRole?.name || "";
 
     if (!userId) throw new UnauthorizedException("Token missing user id");
-    console.log("payload:", payload);
-        console.log("role:", role);
     return { userId, role };
   }
 

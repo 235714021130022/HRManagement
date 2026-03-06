@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req } from '@nestjs/common';
 import { Job } from '@prisma/client';
+import { extractActorFromRequest } from 'src/common/utils/request-actor.util';
 import { CreateJobDto } from './dto/create';
 import { JobFilterType } from './dto/filter_type';
 import { JobPaginType } from './dto/pagin_type';
@@ -13,8 +14,10 @@ export class JobController {
   @Post()
   create(
     @Body() body: CreateJobDto,
+    @Req() req: any,
   ): Promise<Job> {
-    return this.service.create(body);
+    const actor = extractActorFromRequest(req);
+    return this.service.create(body, actor);
   }
 
   @Get()
@@ -39,14 +42,18 @@ export class JobController {
   update(
     @Param('id') id: string,
     @Body() body: UpdateJobDto,
+    @Req() req: any,
   ): Promise<Job | null> {
-    return this.service.update(id, body);
+    const actor = extractActorFromRequest(req);
+    return this.service.update(id, body, actor);
   }
 
   @Delete(':id')
   delete(
     @Param('id') id: string,
+    @Req() req: any,
   ): Promise<Job> {
-    return this.service.delete(id);
+    const actor = extractActorFromRequest(req);
+    return this.service.delete(id, actor);
   }
 }

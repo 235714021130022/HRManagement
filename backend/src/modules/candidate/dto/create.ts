@@ -85,19 +85,11 @@ export class CreateCandidateDto {
 
   @IsOptional()
   @IsUUID()
-  position_applied_id?: string;
-
-  @IsOptional()
-  @IsUUID()
   referrer_id?: string;
 
   @IsOptional()
   @IsUUID()
   process_id?: string;
-
-  @IsOptional()
-  @IsUUID()
-  recruitment_infor_id?: string;
 
   @IsOptional()
   @IsBoolean()

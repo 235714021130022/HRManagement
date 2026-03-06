@@ -4,6 +4,7 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+//pnpm prisma generate --schema prisma/schema.prisma && pnpm prisma migrate status --schema prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
 }
@@ -52,6 +53,7 @@ model Employee {
   jobApplications Job[] // 📋 Các công việc được giao cho nhân viên
   registerCompany CompanyRegistrationRequest[] // 🏢 Các yêu cầu đăng ký công ty do nhân viên tạo
   reviewCandidate CandidateReview[]
+  candidateAuditLogs CandidateAuditLog[]
 }
 
 //#region NHAN VIEN VAI TRO -NMD
@@ -142,8 +144,7 @@ model Recruitment_Infor {
 
   recruitmentPlans Recruitment_Plan_Parent[]
   recruitmentCosts Recruitment_Costs[]
-  candidateRecruitments Candidate[]
-
+  statusApplication Application[]
   
 }
 // ===================
@@ -210,7 +211,6 @@ model Setting_Position_Posts{
   auto_near Boolean @default(false)
   status String? @db.VarChar(50) 
   inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  candidatePosition Candidate[]
   positionSkill PositionSkill[]
   recInfor Recruitment_Infor[]
 }
@@ -265,7 +265,6 @@ model SettingEmail {
   inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 //#region UNG VIEN - MD
-//#region UNG VIEN - MD
 model Candidate {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // ❌ Khóa chính UUID, dùng để view/edit/delete, không show table
   candidate_code String? @db.VarChar(50) @unique                    // 🟡 Mã ứng viên (unique) - nên gộp hiển thị dưới tên ở table
@@ -284,15 +283,11 @@ model Candidate {
 
   date_applied DateTime? @db.Date                                   // ✅ Ngày apply - nên hiển thị để biết mới/cũ
 
-  position_applied_id String? @db.Uuid                              // ❌ FK vị trí ứng tuyển (id) - không show id, chỉ show position name nếu join
   referrer_id String? @db.Uuid                                      // ❌ FK người giới thiệu (id) - không show id, chỉ show referrer name nếu join
-  recruitment_infor_id String? @db.Uuid                             // ❌ FK đợt/tin tuyển dụng (id) - không show id, chỉ show title nếu join
 
-  recruitment_infor Recruitment_Infor? @relation(                fields: [recruitment_infor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 
   referrer Employee? @relation(                                     fields: [referrer_id], references: [id],onDelete: SetNull, onUpdate: Cascade ) // 🟡 Quan hệ tới nhân viên giới thiệu - table có thể show tên referrer (nếu quy trình cần)
 
-  positionPost Setting_Position_Posts? @relation(                    fields: [position_applied_id], references: [id], onDelete: Cascade, onUpdate: Cascade ) // 🟡 Quan hệ tới vị trí ứng tuyển - table NÊN show tên vị trí (nếu BE trả name)
 
   is_active Boolean @default(true)                                   // ✅ Trạng thái active/inactive - nên show badge trên table
   is_potential Boolean @default(false)                               // 🟡 Đánh dấu tiềm năng - thường show icon/tag nhỏ hoặc để filter, không bắt buộc cột riêng
@@ -310,6 +305,50 @@ model Candidate {
   jobCandidates Job_Candidates[]                                     // ❌ Mapping job-candidate - internal relation, để detail nếu cần
   candidateSkill CandidateSkill[]                                    // ❌ Kỹ năng - có thể hiển thị dạng tag trong detail, không nên nhét table
   reviewCandidate CandidateReview[]
+  statusApplication Application[]
+  auditLogs CandidateAuditLog[]
+}
+
+model CandidateAuditLog {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  candidate_id String @db.Uuid
+  actor_employee_id String? @db.Uuid
+
+  actor_type String @default("System") @db.VarChar(30)
+  actor_role String? @db.VarChar(100)
+
+  action String @db.VarChar(120)
+  message String @db.Text
+  metadata Json?
+
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  actorEmployee Employee? @relation(fields: [actor_employee_id], references: [id], onDelete: SetNull)
+
+  @@index([candidate_id, created_at])
+  @@index([actor_employee_id])
+}
+
+//#region APPLICATION
+model Application {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  candidate_id  String   @db.Uuid
+  recruitment_infor_id        String   @db.Uuid
+
+  status        String   @db.VarChar(100)
+
+  note          String?  @db.Text
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  candidate     Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  recruitment_infor           Recruitment_Infor       @relation(fields: [recruitment_infor_id], references: [id], onDelete: Cascade)
+
+  @@unique([candidate_id, recruitment_infor_id])
 }
 
 //#region KINH NGHIEM LAM VIEC - HAVED

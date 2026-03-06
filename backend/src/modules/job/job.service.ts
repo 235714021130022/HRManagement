@@ -2,6 +2,7 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Job } from '@prisma/client';
 import { generateCode } from 'src/common/utils/generate-code.util';
 import { PrismaService } from 'src/prisma.service';
+import { AuditLogService, type CandidateAuditActor } from '../audit_log/audit_log.service';
 import { CreateJobDto } from './dto/create';
 import { JobFilterType } from './dto/filter_type';
 import { JobPaginType } from './dto/pagin_type';
@@ -9,9 +10,33 @@ import { UpdateJobDto } from './dto/update';
 
 @Injectable()
 export class JobService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private auditLogService: AuditLogService,
+  ) {}
 
-  async create(data: CreateJobDto) {
+  private async logForCandidates(
+    candidateIds: string[],
+    action: string,
+    message: string,
+    metadata?: Record<string, any>,
+    actor?: CandidateAuditActor,
+  ) {
+    const uniqueCandidateIds = [...new Set(candidateIds.filter(Boolean))];
+    await Promise.all(
+      uniqueCandidateIds.map((candidateId) =>
+        this.auditLogService.logCandidateActivity({
+          candidateId,
+          action,
+          message,
+          metadata,
+          ...actor,
+        }),
+      ),
+    );
+  }
+
+  async create(data: CreateJobDto, actor?: CandidateAuditActor) {
     const { candidate_ids, job_code, ...rest } = data;
 
     let finalCode = job_code;
@@ -41,7 +66,7 @@ export class JobService {
       finalCode = generateCode('JOB', nextNumber);
     }
 
-    return this.prisma.job.create({
+    const created = await this.prisma.job.create({
       data: {
         ...rest,
         job_code: finalCode,
@@ -62,6 +87,21 @@ export class JobService {
         },
       },
     });
+
+    const candidateIds = created.jobCandidates.map((x) => x.candidate_id);
+    await this.logForCandidates(
+      candidateIds,
+      'JOB_CREATED_FOR_CANDIDATE',
+      'Assigned candidate to a new job',
+      {
+        job_id: created.id,
+        job_name: created.name_job,
+        status: created.status,
+      },
+      actor,
+    );
+
+    return created;
   }
 
   async getAll(params: JobFilterType): Promise<JobPaginType> {
@@ -127,15 +167,16 @@ export class JobService {
       },
     });
   }
- async update(id: string, body: UpdateJobDto) {
+ async update(id: string, body: UpdateJobDto, actor?: CandidateAuditActor) {
   const { candidate_ids, ...rest } = body;
+  let beforeCandidateIds: string[] = [];
 
-  return this.prisma.$transaction(async (tx) => {
+  const updated = await this.prisma.$transaction(async (tx) => {
 
     // 🔥 Kiểm tra tồn tại
     const job = await tx.job.findUnique({
       where: { id },
-      select: { id: true, is_active: true, status: true },
+      select: { id: true, is_active: true, status: true, name_job: true },
     });
 
     if (!job) {
@@ -147,20 +188,17 @@ export class JobService {
 
     const dataUpdate: any = { ...rest };
 
-    // 🔥 Logic đồng bộ status <-> is_active
-    if (typeof dataUpdate.status === 'string') {
-      if (dataUpdate.status === 'Inactive') {
-        dataUpdate.is_active = false;
-      }
-      if (dataUpdate.status === 'Active') {
-        dataUpdate.is_active = true;
-      }
-    }
+    const beforeLinks = await tx.job_Candidates.findMany({
+      where: { job_id: id },
+      select: { candidate_id: true },
+    });
+    beforeCandidateIds = beforeLinks.map((x) => x.candidate_id);
 
+  
     if (typeof dataUpdate.is_active === 'boolean') {
       dataUpdate.status = dataUpdate.is_active
-        ? 'Active'
-        : 'Inactive';
+        ? 'completed'
+        : 'pending';
     }
 
     // 🔥 Update job chính
@@ -189,7 +227,7 @@ export class JobService {
       });
     }
 
-    return tx.job.findUnique({
+    const updatedJob = await tx.job.findUnique({
       where: { id },
       include: {
         employee: true,
@@ -198,15 +236,64 @@ export class JobService {
         },
       },
     });
+
+    return updatedJob;
   });
+
+  if (updated) {
+    const afterCandidateIds = updated.jobCandidates.map((x) => x.candidate_id);
+    const affectedCandidateIds = [...new Set([...beforeCandidateIds, ...afterCandidateIds])];
+
+    await this.logForCandidates(
+      affectedCandidateIds,
+      'JOB_UPDATED_FOR_CANDIDATE',
+      'Updated candidate job',
+      {
+        job_id: updated.id,
+        job_name: updated.name_job,
+        status: updated.status,
+      },
+      actor,
+    );
+  }
+
+  return updated;
 }
-  async delete(id: string): Promise<Job> {
-    return this.prisma.job.update({
+
+  async delete(id: string, actor?: CandidateAuditActor): Promise<Job> {
+    const before = await this.prisma.job.findUnique({
+      where: { id },
+      include: {
+        jobCandidates: {
+          select: {
+            candidate_id: true,
+          },
+        },
+      },
+    });
+
+    const deleted = await this.prisma.job.update({
       where: { id },
       data: {
         is_active: false,
         updated_at: new Date()
       },
     });
+
+    if (before) {
+      const candidateIds = before.jobCandidates.map((x) => x.candidate_id);
+      await this.logForCandidates(
+        candidateIds,
+        'JOB_DELETED_FOR_CANDIDATE',
+        'Removed candidate job',
+        {
+          job_id: before.id,
+          job_name: before.name_job,
+        },
+        actor,
+      );
+    }
+
+    return deleted;
   }
 }

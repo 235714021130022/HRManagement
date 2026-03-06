@@ -105,16 +105,7 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
           style={{ display: "none" }}
           onChange={onChangeFile}
         />
-        {/* <Button
-          leftIcon={<FiUploadCloud />}
-          bg="#334371"
-          color="white"
-          _hover={{ opacity: 0.9 }}
-          onClick={pickFile}
-          isLoading={isUploading}
-        >
-          Tải lên CV mới
-        </Button> */}
+       
       </Flex>
 
       {/* PREVIEW ONLY */}

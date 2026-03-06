@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Candidate } from '@prisma/client';
 import { generateCode } from 'src/common/utils/generate-code.util';
 import { PrismaService } from 'src/prisma.service';
+import { AuditLogService, type CandidateAuditActor } from '../audit_log/audit_log.service';
 import { CreateCandidateDto } from './dto/create';
 import { CandidateFilterType } from './dto/filter_type';
 import { CandidatePaginType } from './dto/pagin_type';
@@ -10,9 +11,12 @@ import * as path from 'path';
 import * as fs from 'fs';
 @Injectable()
 export class CandidateService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
-  async create(data: CreateCandidateDto): Promise<Candidate> {
+  async create(data: CreateCandidateDto, actor?: CandidateAuditActor): Promise<Candidate> {
     const { candidate_code, candidateExperiences, ...rest } = data;
 
     const lastCandidate = await this.prisma.candidate.findFirst({
@@ -32,7 +36,7 @@ export class CandidateService {
 
     const code = candidate_code || generateCode('CA', nextNumber);
 
-    return this.prisma.candidate.create({
+    const created = await this.prisma.candidate.create({
       data: {
         ...rest,
         candidate_code: code,
@@ -48,6 +52,19 @@ export class CandidateService {
       },
       include: {candidateExperiences: true}
     });
+
+    await this.auditLogService.logCandidateActivity({
+      candidateId: created.id,
+      action: 'CANDIDATE_CREATED',
+      message: 'Created candidate profile',
+      metadata: {
+        candidate_code: created.candidate_code,
+        candidate_name: created.candidate_name,
+      },
+      ...actor,
+    });
+
+    return created;
   }
 
   async getAll(filter: CandidateFilterType): Promise<CandidatePaginType> {
@@ -77,6 +94,16 @@ export class CandidateService {
                 where: {
                 is_active: true
                 }
+            },
+            statusApplication: {
+                select: {
+                  id: true,
+                }
+            },
+            jobCandidates: {
+                select: {
+                    id: true,
+                }
             }
             }
       }),
@@ -94,14 +121,44 @@ export class CandidateService {
                 where: {
                 is_active: true
                 }
-            }
+            },
+            jobCandidates: {
+              include: {
+                job: {
+                  include: {
+                    employee: {
+                      select: {
+                        id: true,
+                        employee_name: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            statusApplication: {
+              orderBy: { updated_at: 'desc' },
+              select: {
+                id: true,
+                status: true,
+                note: true,
+                recruitment_infor_id: true,
+                recruitment_infor: {
+                  select: {
+                    id: true,
+                    post_title: true,
+                    internal_title: true,
+                  },
+                },
+              },
+            },
             }
     });
     if (!candidate) throw new NotFoundException('Candidate not found');
     return candidate;
   }
 
-async update(id: string, data: UpdateCandidateDto): Promise<Candidate> {
+async update(id: string, data: UpdateCandidateDto, actor?: CandidateAuditActor): Promise<Candidate> {
   const candidate = await this.prisma.candidate.findUnique({
     where: { id },
     select: { id: true },
@@ -150,7 +207,7 @@ async update(id: string, data: UpdateCandidateDto): Promise<Candidate> {
     ];
   }
 
-  return this.prisma.candidate.update({
+  const updated = await this.prisma.candidate.update({
     where: { id },
     data: {
       ...rest,
@@ -163,22 +220,48 @@ async update(id: string, data: UpdateCandidateDto): Promise<Candidate> {
       candidateExperiences: { where: { is_active: true } }, // để trả về chỉ exp active
     },
   });
+
+  await this.auditLogService.logCandidateActivity({
+    candidateId: id,
+    action: 'CANDIDATE_UPDATED',
+    message: 'Updated candidate profile',
+    metadata: {
+      updated_fields: Object.keys(rest),
+      experience_changes: {
+        created: createExp.length,
+        updated: updateExp.length,
+        deleted: deleteExp.length,
+      },
+    },
+    ...actor,
+  });
+
+  return updated;
 }
 
-  async delete(id: string): Promise<Candidate> {
+  async delete(id: string, actor?: CandidateAuditActor): Promise<Candidate> {
     const candidate = await this.prisma.candidate.findUnique({
       where: { id },
       select: { id: true },
     });
     if (!candidate) throw new NotFoundException('Candidate not found');
 
-    return this.prisma.candidate.update({
+    const deleted = await this.prisma.candidate.update({
       where: { id },
       data: { is_active: false, updated_at: new Date() },
     });
+
+    await this.auditLogService.logCandidateActivity({
+      candidateId: id,
+      action: 'CANDIDATE_DEACTIVATED',
+      message: 'Deactivated candidate profile',
+      ...actor,
+    });
+
+    return deleted;
   }
 
-  async replaceCv(candidate_id: string, newFileName: string){
+  async replaceCv(candidate_id: string, newFileName: string, actor?: CandidateAuditActor){
     const candidate = await this.prisma.candidate.findUnique({
       where: {id: candidate_id},
       select: {id: true, cv_file: true},
@@ -191,7 +274,7 @@ async update(id: string, data: UpdateCandidateDto): Promise<Candidate> {
       fs.promises.unlink(oldPath).catch(()=> {})
     }
 
-    return this.prisma.candidate.update({
+    const updated = await this.prisma.candidate.update({
           where: { id: candidate_id },
           data: {
             cv_file: newFileName,
@@ -203,6 +286,16 @@ async update(id: string, data: UpdateCandidateDto): Promise<Candidate> {
             cv_uploaded_at: true,
           },
         });
+
+    await this.auditLogService.logCandidateActivity({
+      candidateId: candidate_id,
+      action: 'CANDIDATE_CV_REPLACED',
+      message: 'Uploaded/Replaced candidate CV file',
+      metadata: { cv_file: newFileName },
+      ...actor,
+    });
+
+    return updated;
       
     }
 }

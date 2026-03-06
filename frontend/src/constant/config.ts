@@ -6,6 +6,7 @@ export const URL_API_EMPLOYEE = `employee`;
 export const URL_API_INFORCOMPANY = `inforcompany`;
 export const URL_API_RECRUITEMENT_INFOR = `recinform`;
 export const URL_API_CANDIDATE = `candidate`;
+export const URL_API_APPLICATION = `applications`;
 export const URL_API_INTERVIEW_SCHE = `interview-sche`;
 export const URL_API_JOBS = `jobs`;
 export const URL_API_JOB_TITLES = `jobtitles`;
