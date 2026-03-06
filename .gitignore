@@ -1,0 +1,23 @@
+.DS_Store
+.venv/
+node_modules/
+backend/uploads/
+
+# secrets
+frontend/.env
+.env
+.env.*
+
+# datasets
+recommendation/datasets/
+*.xlsx
+
+# ML artifacts
+*.npy
+*.npz
+*.joblib
+
+# notebook outputs / caches
+**/.ipynb_checkpoints/
+recommendation/notebooks/**/outputs/
+recommendation/notebooks/**/cache/

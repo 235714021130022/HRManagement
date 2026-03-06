@@ -1,15 +1,18 @@
 import {
   IsBoolean,
   IsEmail,
-  IsInt,
   IsOptional,
   IsString,
   IsDateString,
   MaxLength,
-  Min,
 } from "class-validator";
 
 export class CreateInforCompanyDTO {
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  infor_code?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -35,8 +38,6 @@ export class CreateInforCompanyDTO {
   @MaxLength(10)
   code_company?: string;
 
-  
-
   @IsOptional()
   @IsDateString()
   date_stablish?: string;
@@ -57,11 +58,6 @@ export class CreateInforCompanyDTO {
   @IsOptional()
   @IsString()
   place_of_issue?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  unit_title?: string;
 
   @IsOptional()
   @IsString()
@@ -90,24 +86,7 @@ export class CreateInforCompanyDTO {
   @IsOptional()
   @IsString()
   @MaxLength(100)
-  status?: string; // "đang theo dõi" | "ngừng theo dõi"...
-
-  // parent_id: nếu bạn sửa schema thành String? thì DTO optional là hợp lý.
-  @IsOptional()
-  @IsString()
-  parent_id?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  organization_level?: string;
-
-  // number_arrange trong schema là Int bắt buộc, nhưng nghiệp vụ thường để tự set.
-  // DTO để optional, backend set default 0/1 nếu không truyền.
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  number_arrange?: number;
+  status?: string; // VD: "đang theo dõi" | "ngừng theo dõi"
 
   @IsOptional()
   @IsString()

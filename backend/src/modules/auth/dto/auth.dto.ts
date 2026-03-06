@@ -1,4 +1,13 @@
-import { IsEmail, IsNotEmpty, Matches, MinLength } from "class-validator";
+import { IsEmail, IsNotEmpty, IsString, IsUUID, Matches, MinLength } from "class-validator";
+export class RegisterResponseDto {
+  id: string;
+  email_account: string;
+  phone_account: string;
+  status: string;
+  emp_code: string | null;
+  is_active: boolean;
+  created_at: Date;
+}
 // matches validate cho phone
 export class RegisterDTO{
     @IsNotEmpty()
@@ -28,4 +37,15 @@ export class LoginDTO{
     
     @IsNotEmpty()
     password: string;
+}
+
+export class ChangePasswordDto {
+  @IsUUID()
+  @IsNotEmpty()
+  user_id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  new_password: string;
 }

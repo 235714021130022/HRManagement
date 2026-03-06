@@ -10,56 +10,51 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url = ""
 }
 
 enum GenderEmployee {
   Male
   Femail
 }
-//#region VAI TRO
+//#region VAI TRO - MD
 model Role {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  role_code String? @db.VarChar(50) @unique
   name_role String? @db.VarChar(100)
   is_active Boolean @default(true)
+  status String @db.VarChar(50)
   employees EmployeeRole[]
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
 }
 
-//#region NHAN VIEN
+//#region NHAN VIEN - MD
 model Employee {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  employee_name String? @db.VarChar(300)
-  password String @db.VarChar(100)
-  date_of_birth DateTime? @db.Date
-  gender GenderEmployee?
-  address String? @db.Text
-  email String? @db.VarChar(100)
-  work_unit String? //khoa ngoai
-  position String? // khoa ngoai
-  job_title String? @db.VarChar(50)
-  director_id String? @db.Uuid
-  director Employee? @relation("EmployeeTree", fields: [director_id], references: [id], onDelete: SetNull)
-  subor_staff Employee[] @relation("EmployeeTree")
-  status String @db.VarChar(50) // dang lam viec;...
-  first_day_of_work DateTime? @db.Date
-  official_date DateTime? @db.Date
-  phone_unit String? @db.VarChar(15)
-  email_unit String? @db.VarChar(100)
-  email_account String @db.VarChar(100) @unique
-  phone_account String @db.VarChar(15) @unique
-  is_active Boolean @default(true)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
-  roles EmployeeRole[]
-  contactPersonInRecruitment Recruitment_Infor[]
-  referrerOfCandidates Candidate[]
-  interviewers Schedule_Interviewers[]
-  jobApplications Job[]
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // 🔑 Khóa chính UUID, tự sinh bằng gen_random_uuid()
+  emp_code String? @db.VarChar(50) @unique // 🏷️ Mã nhân viên Internal, duy nhất, có thể null (auto generate)
+  employee_name String? @db.VarChar(300) // 👤 Tên đầy đủ nhân viên
+  password String @db.VarChar(100) // 🔐 Mật khẩu đăng nhập (đã hash)
+  date_of_birth DateTime? @db.Date // 🎂 Ngày sinh (chỉ lưu ngày, không lưu giờ)
+  gender GenderEmployee? // 🚻 Giới tính (enum GenderEmployee)
+  address String? @db.Text // 🏠 Địa chỉ cư trú
+  email String? @db.VarChar(100) // 📧 Email cá nhân
+  status String @db.VarChar(50) // 📊 Trạng thái làm việc (Active, Inactive, Nghỉ việc...)
+  email_account String @db.VarChar(100) @unique // 🔑 Email dùng để đăng nhập hệ thống (duy nhất)
+  phone_account String @db.VarChar(15) @unique // 📱 Số điện thoại dùng để đăng nhập (duy nhất)
+  is_active Boolean @default(true) // ✅ Trạng thái hoạt động (soft delete / bật tắt tài khoản)
+  created_at DateTime @default(now()) @db.Timestamp(6) // ⏱ Thời gian tạo bản ghi
+  updated_at DateTime @default(now()) @db.Timestamp(6) // 🔄 Thời gian cập nhật gần nhất
+  roles EmployeeRole[] // 🛡 Quan hệ nhiều-nhiều với Role thông qua bảng EmployeeRole
+  contactPersonInRecruitment Recruitment_Infor[] // 📌 Là người liên hệ trong các đợt tuyển dụng
+  referrerOfCandidates Candidate[] // 🎯 Là người giới thiệu ứng viên
+  interviewers Schedule_Interviewers[] // 🎤 Là người phỏng vấn trong các lịch phỏng vấn
+  jobApplications Job[] // 📋 Các công việc được giao cho nhân viên
+  registerCompany CompanyRegistrationRequest[] // 🏢 Các yêu cầu đăng ký công ty do nhân viên tạo
+  reviewCandidate CandidateReview[]
 }
 
-//#region NHAN VIEN VAI TRO
+//#region NHAN VIEN VAI TRO -NMD
 model EmployeeRole {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   id_role     String @db.Uuid
@@ -72,125 +67,87 @@ model EmployeeRole {
   @@index([id_employee])
 }
 
-//#region THONG TIN CONG TY
+//#region THONG TIN CONG TY - MD
 model InforCompany {
-  id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  full_name String? @db.VarChar(255)
-  acronym_name String? @db.VarChar(50)
-  business_type String? @db.VarChar(100)
-  tax_idennumber String? @db.VarChar(13)
-  code_company String? @db.VarChar(10)
-  date_stablish DateTime? @db.Date
-  image_logo String? @db.Text
-  code_business String? @db.VarChar(50)
-  date_of_issue DateTime? @db.Date
-  place_of_issue String? @db.Text
-  unit_title String? @db.VarChar(255)
-  address String? @db.Text
-  phone_number String? @db.VarChar(15)
-  fax String? @db.VarChar(255)
-  email String? @db.VarChar(255)
-  website String? @db.VarChar(255)  
-  status String? @db.VarChar(100) // dang theo doi; ngung theo doi
-  parent_id String? @db.Uuid
-  parent InforCompany? @relation("CompanyTree", fields: [parent_id], references: [id], onDelete: SetNull)
-  childrent InforCompany[] @relation("CompanyTree")
-  organization_level String? @db.VarChar(255)
-  number_arrange Int @db.Integer
-  field_of_activity String? @db.VarChar(50) 
-  @@index([parent_id])
-  is_active Boolean @default(true)
-  created_at DateTime @default(now()) @db.Timestamp(6)
-  updated_at DateTime @default(now()) @db.Timestamp(6)
-  positions PositionCompany[]
-  rankUnits Rank[] 
-  department Recruitment_Infor[]
-  workTree Recruitment_Infor[] @relation("WorkTree")
-  channelRecruitments Setting_Channel_Recruitment[]
-  positionPosts Setting_Position_Posts[]
-  card Candidate_Card[]
-  reasonDisCandidates Reason_DisCandidate[]
-  emailConfApplications Setting_Email_ConfApplication[]
-  emailInterviews Setting_Email_Interview[]
-  emailRejects Setting_Email_Reject[]
-  emailReApplications Setting_Email_ReApplication[]
-  emailOthers Setting_Email_Other[]
-  settingEvaluationTemplates Setting_Evaluation_Template[]
-  settingExamplePreparerations Setting_Example_Prepareration[]
-  settingJobEmailOffers Setting_JobEmailOffer[]
+  id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // PK UUID công ty
+
+  infor_code String? @db.VarChar(50) @unique // Mã Internal công ty (unique)
+  full_name String? @db.VarChar(255) // Tên đầy đủ công ty
+  acronym_name String? @db.VarChar(50) // Tên viết tắt
+
+  business_type String? @db.VarChar(100) // Loại hình DN (TNHH/Cổ phần/...)
+  tax_idennumber String? @db.VarChar(13) // Mã số thuế
+  code_company String? @db.VarChar(10) // Mã đăng ký doanh nghiệp
+
+  date_stablish DateTime? @db.Date // Ngày thành lập
+  image_logo String? @db.Text // Logo (URL/base64)
+
+  code_business String? @db.VarChar(50) // Số GPKD / giấy phép kinh doanh
+  date_of_issue DateTime? @db.Date // Ngày cấp GPKD
+  place_of_issue String? @db.Text // Nơi cấp GPKD
+
+  address String? @db.Text // Địa chỉ
+  phone_number String? @db.VarChar(15) // SĐT liên hệ
+  fax String? @db.VarChar(255) // Fax
+  email String? @db.VarChar(255) // Email liên hệ
+  website String? @db.VarChar(255) // Website
+
+  status String? @db.VarChar(100) // Trạng thái theo dõi (đang/ ngừng)
+  field_of_activity String? @db.VarChar(50) // Lĩnh vực hoạt động (IT/Banking/...)
+
+  is_active Boolean @default(true) // Còn hoạt động trong hệ thống
+
+  created_at DateTime @default(now()) @db.Timestamp(6) // Thời điểm tạo
+  updated_at DateTime @default(now()) @db.Timestamp(6) // Thời điểm cập nhật
+
+  rankUnits Rank[] // Danh sách Rank thuộc công ty
+  department Recruitment_Infor[] @relation("DepartmentCompany") // Tuyển dụng theo phòng ban (FK về company)
+  positionPosts Setting_Position_Posts[] // Danh sách vị trí đăng tuyển thuộc công ty
+  registrationRequest CompanyRegistrationRequest[] // Yêu cầu đăng ký sử dụng hệ thống của công ty
+  workLocations Recruitment_Infor[] @relation("WorkLocationCompany") // Tuyển dụng theo địa điểm làm việc (FK về company)
+  settingEmail SettingEmail[] // Cấu hình email của công ty
 }
 
-//#region THONG TIN CONG TY
-model PositionCompany {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  position_code String? @db.VarChar(50) @unique
-  name_position String? @db.VarChar(100)
-  description String? @db.Text
-  org_unit_id String? @db.Uuid
-  status String? @db.VarChar(50)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  group_position String? @db.Uuid
-  job_title_id String? @db.Uuid
-  org_unit InforCompany? @relation(fields: [org_unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-//#region JobTitle
-model JobTitle {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name_title String? @db.VarChar(100)
-  description String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-}
-
-//#region NHOM VI TRI
-model GroupPosition {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name_group String? @db.VarChar(100) 
-  description String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-}
-
-//#region CO CAU TO CHUC
-model OrganizationLevel {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name_level String? @db.VarChar(100) @unique
-  description String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-}
-
-//#region THONG TIN UNG TUYEN
-model Recruitment_Infor{
+//#region THONG TIN UNG TUYEN - MD
+model Recruitment_Infor {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   recruitment_code String? @db.VarChar(50) @unique
   internal_title String? @db.VarChar(300)
   post_title String? @db.VarChar(300)
-  department_id String @db.Uuid // khoa ngoai
-  rank_id String @db.Uuid // khoa ngoai
-  work_location_id String @db.Uuid // khoa ngoai
-  type_of_job String? @db.VarChar(150) // khoa ngoai
+
+  department_id String? @db.Uuid
+  work_location_id String? @db.Uuid
+  rank_id String? @db.Uuid
+  contact_person_id String? @db.Uuid
+
+  type_of_job String? @db.VarChar(150)
   application_deadline DateTime? @db.Date
   salary_from Float? @db.DoublePrecision
   salary_to Float? @db.DoublePrecision
   salary_currency String? @db.VarChar(50)
-  contact_person_id String @db.Uuid // khoa ngoai
+  status String? @db.VarChar(50)
 
-  department InforCompany? @relation(fields: [department_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  is_active Boolean @default(true)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+
+  department   InforCompany? @relation("DepartmentCompany", fields: [department_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  workLocation InforCompany? @relation("WorkLocationCompany", fields: [work_location_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
   rank Rank? @relation(fields: [rank_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  workLocation InforCompany? @relation("WorkTree",fields: [work_location_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   contactPerson Employee? @relation(fields: [contact_person_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  position_post_id String @db.Uuid
+  positionPost Setting_Position_Posts @relation(fields: [position_post_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
   recruitmentPlans Recruitment_Plan_Parent[]
   recruitmentCosts Recruitment_Costs[]
   candidateRecruitments Candidate[]
-}
 
-//#region KE HOACH UNG TUYEN - CHA
+  
+}
+// ===================
+//#region KE HOACH UNG TUYEN - CHA  - HAVED
 model Recruitment_Plan_Parent {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   recruitment_id String? @db.Uuid // khoa ngoai
@@ -202,7 +159,7 @@ model Recruitment_Plan_Parent {
   recruitmentPlanChildPosteds Recruitment_Plan_Child_Posted[]
 }
 
-//#region KE HOACH THEO DOT
+//#region KE HOACH THEO DOT  - HAVED
 model Recruitment_Plan_Child_Batches {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   recruitment_plan_parent_id String? @db.Uuid // khoa ngoai
@@ -214,7 +171,7 @@ model Recruitment_Plan_Child_Batches {
   recruitmentPlanParent Recruitment_Plan_Parent? @relation(fields: [recruitment_plan_parent_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
-//#region KE HOACH THEO TIN
+//#region KE HOACH THEO TIN - HAVED
 model Recruitment_Plan_Child_Posted {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   recruitment_plan_parent_id String? @db.Uuid // khoa ngoai
@@ -224,7 +181,7 @@ model Recruitment_Plan_Child_Posted {
   recruitmentPlanParent Recruitment_Plan_Parent? @relation(fields: [recruitment_plan_parent_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
-//#region CHI PHI TIN TUYEN
+//#region CHI PHI TIN TUYEN KHÁC - HAVED
 model Recruitment_Costs{
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   recruitment_id String? @db.Uuid // khoa ngoai
@@ -232,14 +189,10 @@ model Recruitment_Costs{
   amount Float? @db.DoublePrecision
   currency String? @db.VarChar(50)
   recruitmentInfor Recruitment_Infor? @relation(fields: [recruitment_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
 }
 
-
-
-
 // =============================================== SETTING MODELS ==================================================
-//#region VI TRI UNG VIEN
+//#region VI TRI UNG VIEN - MD
 model Setting_Position_Posts{
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   position_code String? @db.VarChar(50) @unique
@@ -248,49 +201,21 @@ model Setting_Position_Posts{
   description_post String? @db.Text
   requirements_post String? @db.Text
   benefits_post String? @db.Text
-  Setting_Process_Recruitment_id String @db.Text // khoa ngoai
+  Setting_Process_Recruitment_id String? @db.Uuid
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
   auto_rotation Boolean @default(false)
   auto_eli_candidate Boolean @default(false)
   auto_near Boolean @default(false)
+  status String? @db.VarChar(50) 
   inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  settingCriteriaTemplates Setting_Evaluation_Template[]
   candidatePosition Candidate[]
-  settingExamplePreparations Setting_Example_Prepareration[]
+  positionSkill PositionSkill[]
+  recInfor Recruitment_Infor[]
 }
 
-//#region QUY TRINH TUYEN DUNG
-model Setting_Process_Recruitment{
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name_process String? @db.VarChar(100) @unique
-  order_index Int @db.Integer
-  hex_color String? @db.VarChar(7)
-  is_started Boolean @default(false)
-  is_ended Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  processCandidates Candidate[]
-}
-
-//#region - NGUON UNG VIEN
-model Setting_Channel_Recruitment{
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  channel_code String? @db.VarChar(50) @unique
-  name_channel String? @db.VarChar(100)
-  address_channel String? @db.Text
-  unit_id String? @db.Uuid
-  status String? @db.VarChar(50)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  candidateSourceCandidates Candidate[]
-}
-
-//#region CAP BAC
+//#region CAP BAC - MD
 model Rank {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   rank_code String? @db.VarChar(50) @unique
@@ -305,7 +230,7 @@ model Rank {
   rank_levels Recruitment_Infor[]
 }
  
- //#region TRINH DO DAO TAO
+ //#region TRINH DO DAO TAO - MD
 model Setting_Training_Level {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   level_code String? @db.VarChar(50) @unique
@@ -313,278 +238,81 @@ model Setting_Training_Level {
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
-  education_experience Candidate_Education[]
 }
 
-//#region NOI DAO TAO
-model Setting_Training_Place {
+//#region  UNG VIEN TIEM NANG - MD
+model Setting_Potential_Type {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  place_code String? @db.VarChar(50) @unique
-  name_place String? @db.VarChar(100)
+  name String
+  description String?
   is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-    education_experience Candidate_Education[]
+  candidate Candidate[]
 }
 
-//#region CHUYEN NGANH
-model Setting_Specialization {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  specialization_code String? @db.VarChar(50) @unique
-  name_specialization String? @db.VarChar(100)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-    education_experience Candidate_Education[]
-
-}
-
-//#region  THE UNG VIEN
-model Candidate_Card {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  candidate_card_name String? @db.VarChar(300)
-  color_card String? @db.VarChar(7)
-  unit_id String? @db.Uuid
+//#region EMAIL
+model SettingEmail {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sec_code     String?   @db.VarChar(50) @unique
+  name         String?   @db.VarChar(300) // email_name hoặc offer_name
+  unit_id      String?   @db.Uuid
+  subject      String?   @db.VarChar(255) // email_subject hoặc offer_subject
+  body         String?   @db.Text         // email_body hoặc offer_body
+  auto_send    Boolean?  @default(false)  // chỉ dùng cho 'other', job_offer có thể null
+  is_active    Boolean   @default(true)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
 
   inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
 }
-
-//#region  UNG VIEN TIEM NANG
-model Potential_Candidate {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  candidate_name String? @db.VarChar(300)
-  color_potential String? @db.VarChar(7)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-}
-
-//#region NHOM LY DO LOAI UNG VIEN
-model GroupReason_DisCandidate {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  group_reason_code String? @db.VarChar(50) @unique
-  name_group_reason String? @db.VarChar(100)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  reasons Reason_DisCandidate[]
-}
-
-//#region  LY DO LOAI UNG VIEN
-model Reason_DisCandidate {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  reason_code String? @db.VarChar(50) @unique
-  name_reason String? @db.VarChar(100)
-  group_reason_id String @db.Uuid
-  unit_id String? @db.Uuid
-  groupReason GroupReason_DisCandidate @relation(fields: [group_reason_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region  EMAIL XAC NHAN UNG TUYEN
-model Setting_Email_ConfApplication {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email_name String? @db.VarChar(300)
-  unit_id String? @db.Uuid
-  email_subject String? @db.VarChar(255)
-  email_body String? @db.Text
-  auto_send Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region  EMAIL PHONG VAN
-model Setting_Email_Interview {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email_name String? @db.VarChar(300)
-  unit_id String? @db.Uuid
-  email_subject String? @db.VarChar(255)
-  email_body String? @db.Text
-  auto_send Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region EMAIL TU CHOI
-model Setting_Email_Reject {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email_name String? @db.VarChar(300)
-  unit_id String? @db.Uuid
-  email_subject String? @db.VarChar(255)
-  email_body String? @db.Text
-  auto_send Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region  EMAIL UNG TUYEN LAI
-model Setting_Email_ReApplication {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email_name String? @db.VarChar(300)
-  unit_id String? @db.Uuid
-  email_subject String? @db.VarChar(255)
-  email_body String? @db.Text
-  auto_send Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region EMAIL KHAC
-model Setting_Email_Other {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email_name String? @db.VarChar(300)
-  unit_id String? @db.Uuid
-  email_subject String? @db.VarChar(255)
-  email_body String? @db.Text
-  auto_send Boolean @default(false)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region  MAU PHIEU DANH GIA
-model Setting_Evaluation_Template {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  template_name String? @db.VarChar(200)
-  unit_id String? @db.Uuid
-  position_applied_id String @db.Uuid
-  interview_script String? @db.Text
-  criteria_id String @db.Uuid
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  criteria Setting_Evaluation_Criteria? @relation(fields: [criteria_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  positionPost Setting_Position_Posts? @relation(fields: [position_applied_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  evaluationCriterias Setting_Evaluation_Criterias[]
-  schedules Interview_Schedule[]
-}
-
-//#region Setting_Evaluation_Criterias - BIEU MUC TIEU CHI DANH GIA - BANG TRUNG GIAN
-model Setting_Evaluation_Criterias{ 
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  evaluation_template_id String @db.Uuid
-  criteria_id String @db.Uuid
-  order_index Int @db.Integer
-  evaluationTemplate Setting_Evaluation_Template @relation(fields: [evaluation_template_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  evaluationCriteria Setting_Evaluation_Criteria @relation(fields: [criteria_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region  TIEU CHI DANH GIA
-model Setting_Evaluation_Criteria {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  criteria_name String? @db.VarChar(200)
-  guide_crite String? @db.Text
-  type_criteria String? @db.VarChar(100) // constant enum : đánh giá; nậhp văn bản; đán giá và nhập văn bản
-  request_pass_fail Boolean @default(false)
-  include_in_conclusion Boolean @default(false)
-  weight Float @db.DoublePrecision
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  suggestions Setting_Criteria_Suggest[]
-  criteriaInTemplates Setting_Evaluation_Template[]
-  criteriaInEvaluationCriterias Setting_Evaluation_Criterias[]
-}
-
-//#region GOI Y CHO TIEU CHI DANH GIA
-model Setting_Criteria_Suggest {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  criteria_id String @db.Uuid
-  suggestion_text String? @db.Text
-  order_index Int @db.Integer
-  evaluationCriteria Setting_Evaluation_Criteria @relation(fields: [criteria_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region MON THI
-model Setting_Example_Prepareration {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  example_name String? @db.VarChar(200)
-  unit_id String? @db.Uuid
-  position_applied_id String @db.Uuid
-  example_text String? @db.Text
-  order_index Int @db.Integer
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  positionPost Setting_Position_Posts? @relation(fields: [position_applied_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  exampleSubjects Setting_Example_Subject[]
-}
-
-//#region DE THI
-model Setting_Example_Subject {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  example_prepareration_id String @db.Uuid
-  subject_text String? @db.Text
-  order_index Int @db.Integer
-  note String? @db.Text
-  examplePrepareration Setting_Example_Prepareration @relation(fields: [example_prepareration_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region MAU EMAIL MOI LAM VIEC
-model Setting_JobEmailOffer {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  offer_name String? @db.VarChar(200)
-  unit_id String? @db.Uuid
-  offer_subject String? @db.VarChar(255)
-  offer_body String? @db.Text
-  letter_template String? @db.Text
-  file_letter_template String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  inforCompany InforCompany? @relation(fields: [unit_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
-//#region UNG VIEN
+//#region UNG VIEN - MD
+//#region UNG VIEN - MD
 model Candidate {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  candidate_code String? @db.VarChar(50) @unique
-  candidate_name String? @db.VarChar(300)
-  date_of_birth DateTime? @db.Date
-  gender String? @db.VarChar(50)
-  phone_number String? @db.VarChar(15)
-  email String? @db.VarChar(100)
-  address String? @db.Text
-  country String? @db.VarChar(100)
-  provice String? @db.VarChar(100)
-  district String? @db.VarChar(100)
-  date_applied DateTime? @db.Date
-  source_channel_id String @db.Uuid
-  position_applied_id String @db.Uuid
-  referrer_id String @db.Uuid
-  process_id String @db.Uuid
-  recruitment_infor_id String @db.Uuid
-  recruitment_infor Recruitment_Infor? @relation(fields: [recruitment_infor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  source_channel Setting_Channel_Recruitment? @relation(fields: [source_channel_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  referrer Employee? @relation(fields: [referrer_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  positionPost Setting_Position_Posts? @relation(fields: [position_applied_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  process Setting_Process_Recruitment? @relation(fields: [process_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  candidateExperiences Candidate_Experience[]
-  candidateEducations Candidate_Education[]
-  schedules Schedules_Candidates[]
-  jobCandidates Job_Candidates[]
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // ❌ Khóa chính UUID, dùng để view/edit/delete, không show table
+  candidate_code String? @db.VarChar(50) @unique                    // 🟡 Mã ứng viên (unique) - nên gộp hiển thị dưới tên ở table
+  candidate_name String? @db.VarChar(300)                           // ✅ Tên ứng viên - cột quan trọng nhất trên table
+
+  date_of_birth DateTime? @db.Date                                  // ❌ Ngày sinh - để detail/form, không cần ở list
+  gender String? @db.VarChar(50)                                    // ❌ Giới tính - để detail/form, list không cần
+
+  phone_number String? @db.VarChar(15)                              // ✅ SĐT - nên hiển thị (liên hệ nhanh)
+  email String? @db.VarChar(100)                                    // ✅ Email - nên hiển thị (liên hệ nhanh)
+
+  address String? @db.Text                                          // ❌ Địa chỉ chi tiết - dài, để detail
+  country String? @db.VarChar(100)                                  // ❌ Quốc gia - thường để detail
+  provice String? @db.VarChar(100)                                  // ❌ Tỉnh/Thành (đang bị typo provice) - để detail
+  district String? @db.VarChar(100)                                 // ❌ Quận/Huyện - để detail
+
+  date_applied DateTime? @db.Date                                   // ✅ Ngày apply - nên hiển thị để biết mới/cũ
+
+  position_applied_id String? @db.Uuid                              // ❌ FK vị trí ứng tuyển (id) - không show id, chỉ show position name nếu join
+  referrer_id String? @db.Uuid                                      // ❌ FK người giới thiệu (id) - không show id, chỉ show referrer name nếu join
+  recruitment_infor_id String? @db.Uuid                             // ❌ FK đợt/tin tuyển dụng (id) - không show id, chỉ show title nếu join
+
+  recruitment_infor Recruitment_Infor? @relation(                fields: [recruitment_infor_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  referrer Employee? @relation(                                     fields: [referrer_id], references: [id],onDelete: SetNull, onUpdate: Cascade ) // 🟡 Quan hệ tới nhân viên giới thiệu - table có thể show tên referrer (nếu quy trình cần)
+
+  positionPost Setting_Position_Posts? @relation(                    fields: [position_applied_id], references: [id], onDelete: Cascade, onUpdate: Cascade ) // 🟡 Quan hệ tới vị trí ứng tuyển - table NÊN show tên vị trí (nếu BE trả name)
+
+  is_active Boolean @default(true)                                   // ✅ Trạng thái active/inactive - nên show badge trên table
+  is_potential Boolean @default(false)                               // 🟡 Đánh dấu tiềm năng - thường show icon/tag nhỏ hoặc để filter, không bắt buộc cột riêng
+
+  potential_type_id String? @db.Uuid                                 // ❌ FK loại tiềm năng (id) - không show id, chỉ show type name nếu join
+  potential Setting_Potential_Type? @relation(                       fields: [potential_type_id], references: [id], onDelete: Cascade, onUpdate: Cascade ) // 🟡 Quan hệ loại tiềm năng - nếu dùng, show tên loại ở detail/
+  cv_file           String?  @db.VarChar(500)
+  cv_uploaded_at    DateTime?
+  created_at DateTime? @default(now()) @db.Timestamp(6)              // ❌ Ngày tạo - thường không cần ở list (chỉ cần nếu audit)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)              // ❌ Ngày cập nhật - thường không cần ở list
+
+  status String? @db.VarChar(50)
+  candidateExperiences Candidate_Experience[]                        // ❌ List kinh nghiệm - không show table list, để tab/detail
+  schedules Schedules_Candidates[]                                   // ❌ Lịch phỏng vấn/agenda - để tab/detail
+  jobCandidates Job_Candidates[]                                     // ❌ Mapping job-candidate - internal relation, để detail nếu cần
+  candidateSkill CandidateSkill[]                                    // ❌ Kỹ năng - có thể hiển thị dạng tag trong detail, không nên nhét table
+  reviewCandidate CandidateReview[]
 }
-//#region KINH NGHIEM LAM VIEC
+
+//#region KINH NGHIEM LAM VIEC - HAVED
 model Candidate_Experience {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   candidate_id String @db.Uuid
@@ -593,53 +321,51 @@ model Candidate_Experience {
   from_month DateTime? @db.Date
   to_month DateTime? @db.Date
   job_description String? @db.Text
+  is_active Boolean @default(true)
   candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
-//#region TRINH DO HOC VAN
-model Candidate_Education {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  candidate_id String @db.Uuid
-  training_level_id String @db.Uuid
-  training_place_id String @db.Uuid
-  specialization_id String @db.Uuid
-  major String? @db.VarChar(100)
-  from_year Int @db.Integer
-  to_year Int @db.Integer
-  candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  trainingLevel Setting_Training_Level @relation(fields: [training_level_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  trainingPlace Setting_Training_Place @relation(fields: [training_place_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  specialization Setting_Specialization @relation(fields: [specialization_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+//#region DANH GIA
+model CandidateReview {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  candidate_id  String   @db.Uuid
+  reviewer_id   String   @db.Uuid
+
+  rating Decimal @db.Decimal(2,1)
+  comment       String?  @db.Text
+
+  is_active     Boolean  @default(true)
+
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  Candidate     Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade)
+  Reviewer      Employee      @relation(fields: [reviewer_id], references: [id], onDelete: Cascade)
+
+  @@index([candidate_id])
+  @@index([reviewer_id])
+  // nếu bạn muốn 1 người chỉ review 1 lần / 1 candidate:
+  // @@unique([candidate_id, reviewer_id])
 }
 
+//#region LOAILICH - MD
 model Schedules_Type{
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  st_code String? @db.VarChar(50) @unique
   type_name String? @db.VarChar(100)
   description String? @db.Text
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
   interviewSchedules Interview_Schedule[]
-  typeSchedules_OnlineExams TypeSchedules_OnlineExam[]
   typeSchedules_Links TypeSchedules_Link[]
 }
 
-model Setting_Exam_Online {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  exam_name String? @db.VarChar(200)
-  description String? @db.Text
-  duration_minutes Int @db.Integer
-  total_questions Int @db.Integer
-  passing_score Float @db.DoublePrecision
-  file_exam String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  typeSchedules_OnlineExams TypeSchedules_OnlineExam[]
-}
-
+//#region PHONGVAN TRUC TUYEN - MD
 model TypeSchedules_Link {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tl_code String? @db.VarChar(50) @unique
   type_schedule_id String @db.Uuid
   exam_link String? @db.Text
   is_active Boolean @default(true)
@@ -648,31 +374,18 @@ model TypeSchedules_Link {
   scheduleType Schedules_Type @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
 }
 
-model TypeSchedules_OnlineExam {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  type_schedule_id String @db.Uuid
-  date_exam DateTime? @db.Timestamp(6)
-  start_at DateTime? @db.Timestamp(6)
-  end_at DateTime? @db.Timestamp(6)
-  exam_id String @db.Uuid // khoa ngoai
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  scheduleType Schedules_Type @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  examOnline Setting_Exam_Online @relation(fields: [exam_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
-
+//#region LICH PHONG VAN - MD
 model Interview_Schedule {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sche_code String? @db.VarChar(50) @unique
   interview_date DateTime? @db.Timestamp(6)
   interview_location String? @db.Text
   interview_room String? @db.VarChar(100)
   time_duration Int @db.Integer // in minutes
   times DateTime? @db.Timestamp(6)
-  type_schedule_id String @db.Uuid
-  evaluation_id String @db.Uuid
-  scheduleType Schedules_Type @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  evaluation Setting_Evaluation_Template? @relation(fields: [evaluation_id], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  type_schedule_id String? @db.Uuid
+  evaluation_id String? @db.Uuid
+  scheduleType Schedules_Type? @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
@@ -680,31 +393,39 @@ model Interview_Schedule {
   candidates Schedules_Candidates[]
 }
 
+//#region HOIDONGPHONGVAN - HAVED
 model Schedule_Interviewers {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   interview_schedule_id String @db.Uuid
   employee_id String @db.Uuid
   interviewSchedule Interview_Schedule @relation(fields: [interview_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   interviewer Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([interview_schedule_id, employee_id])
 }
 
+//#region UNGVIEN - HAVED
 model Schedules_Candidates{
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   interview_schedule_id String @db.Uuid
   candidate_id String @db.Uuid
   interviewSchedule Interview_Schedule @relation(fields: [interview_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([interview_schedule_id, candidate_id])
 }
 
+//#region CONGVIEC - MD
 model Job {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  job_code String? @db.VarChar(50) @unique
   name_job String? @db.VarChar(200)
   description_job String? @db.Text
   type_job String? @db.VarChar(100) // constant
   result_job String? @db.VarChar(100) // constant : FAIL; PASSED
-  employee_id String @db.Uuid // khoa ngoai - nguoi thuc hien
+  employee_id String? @db.Uuid // khoa ngoai - nguoi thuc hien
   deadline DateTime? @db.Date
-  remind_enabled Boolean @default(false)
+  remind_enabled Boolean? @default(false)
   remind_before_minutes Int? @db.Integer
   status String? @db.VarChar(50)
   is_active Boolean @default(true)
@@ -714,10 +435,66 @@ model Job {
   jobCandidates Job_Candidates[]
 }
 
+//#region UNGVIENCONGVIEC - HAVED
 model Job_Candidates {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   job_id String @db.Uuid
   candidate_id String @db.Uuid
   job Job @relation(fields: [job_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
   candidate Candidate @relation(fields: [candidate_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+}
+
+//#region KY NANG
+model Skill{
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name String @unique
+  parent_id String?  @db.Uuid
+  is_active Boolean @default(true)
+  parent Skill? @relation("SkillTree", fields: [parent_id], references: [id])
+  children Skill[] @relation("SkillTree")
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  updated_at DateTime? @default(now()) @db.Timestamp(6)
+  positionSkill PositionSkill[]
+  candidateSkill CandidateSkill[]
+  @@unique([name, parent_id])
+}
+
+model PositionSkill{
+  position_id String @db.Uuid
+  skill_id String @db.Uuid
+  level Int?
+  is_required Boolean @default(true)
+  position Setting_Position_Posts @relation(fields: [position_id], references: [id])
+  skill Skill @relation(fields: [skill_id], references: [id])
+
+  @@id([position_id, skill_id])
+}
+
+model CandidateSkill {
+  candidate_id String @db.Uuid
+  skill_id String @db.Uuid
+  level Int?
+  candidate Candidate @relation(fields: [candidate_id], references: [id])
+  skill Skill @relation(fields: [skill_id], references: [id])
+
+  @@id([candidate_id, skill_id])
+}
+
+
+//#region HỒ SƠ ĐĂNG KÝ SỬ DỤNG APP
+model CompanyRegistrationRequest {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyName String
+  email       String
+  phone       String?
+  address     String?
+  status      String    // pending, approved, rejected
+  createdAt   DateTime  @default(now())
+  approvedAt  DateTime?
+  adminNote   String?
+  createdById String? @db.Uuid
+  createdBy   Employee?  @relation(fields: [createdById], references: [id])
+  is_active Boolean @default(true)
+  inforCompanyId String?  @db.Uuid
+  inforCompany   InforCompany? @relation(fields: [inforCompanyId], references: [id], onDelete: Cascade, onUpdate: Cascade )
 }

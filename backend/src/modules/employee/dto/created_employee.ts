@@ -1,4 +1,6 @@
 import {
+  ArrayUnique,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -7,12 +9,18 @@ import {
   IsOptional,
   IsPhoneNumber,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
 } from "class-validator";
 
 import { GenderEmployee } from "@prisma/client";
 export class CreateEmployeeDTO {
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  emp_code?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(300)
@@ -40,57 +48,34 @@ export class CreateEmployeeDTO {
   @MaxLength(100)
   email?: string;
 
-  @IsOptional()
-  @IsString()
-  work_unit?: string;
-
-  @IsOptional()
-  @IsString()
-  position?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(50)
-  job_title?: string;
-
-  @IsOptional()
-  @IsString()
-  director_id?: string;
-
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
   status!: string;
 
-  @IsOptional()
-  @IsDateString()
-  first_day_of_work?: string;
-
-  @IsOptional()
-  @IsDateString()
-  official_date?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(15)
-  phone_unit?: string;
-
-  @IsOptional()
   @IsEmail()
   @MaxLength(100)
-  email_unit?: string;
+  email_account: string;
 
-  @IsEmail()
-  @MaxLength(100)
-  email_account!: string;
-
-  // Class-validator có IsPhoneNumber nhưng cần country code, nếu bạn dùng số VN dạng 0xxx
-  // thì để IsString + regex là dễ nhất. Mình để IsString đơn giản.
   @IsString()
   @MaxLength(15)
-  phone_account!: string;
+  phone_account: string;
 
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
+
+    // ✅ hỗ trợ mảng role ids (multi-role)
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  role_ids?: string[];
+
+  // ✅ nếu m đang dùng roles_id ở chỗ khác thì giữ luôn (alias)
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  roles_id?: string[];
 }
