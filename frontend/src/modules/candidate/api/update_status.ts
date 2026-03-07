@@ -77,14 +77,16 @@ type UpdateApplicationStatusMutationOptions = Omit<
 
 export const useUpdateApplicationStatus = (config?: UpdateApplicationStatusMutationOptions) => {
 	const queryClient = useQueryClient();
+	const { onSuccess, ...restConfig } = config || {};
 
 	return useMutation({
+		...restConfig,
 		mutationFn: ({ id, data }) => updateApplicationStatus(id, data),
-		onSuccess: (data, variables, context) => {
+		onSuccess: (data, variables, _onMutateResult, context) => {
 			queryClient.invalidateQueries({ queryKey: ["candidate"] });
 			queryClient.invalidateQueries({ queryKey: ["application"] });
-			config?.onSuccess?.(data, variables, context);
+			queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs"] });
+			onSuccess?.(data, variables, context);
 		},
-		...config,
 	});
 };

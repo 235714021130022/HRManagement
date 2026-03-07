@@ -170,6 +170,8 @@ export class JobService {
  async update(id: string, body: UpdateJobDto, actor?: CandidateAuditActor) {
   const { candidate_ids, ...rest } = body;
   let beforeCandidateIds: string[] = [];
+  let beforeJobStatus: string | null = null;
+  let beforeJobName: string | null = null;
 
   const updated = await this.prisma.$transaction(async (tx) => {
 
@@ -185,6 +187,9 @@ export class JobService {
         HttpStatus.BAD_REQUEST,
       );
     }
+
+    beforeJobStatus = job.status;
+    beforeJobName = job.name_job;
 
     const dataUpdate: any = { ...rest };
 
@@ -250,8 +255,10 @@ export class JobService {
       'Updated candidate job',
       {
         job_id: updated.id,
-        job_name: updated.name_job,
-        status: updated.status,
+        old_job_name: beforeJobName,
+        new_job_name: updated.name_job,
+        old_status: beforeJobStatus,
+        new_status: updated.status,
       },
       actor,
     );
@@ -289,6 +296,7 @@ export class JobService {
         {
           job_id: before.id,
           job_name: before.name_job,
+          status: before.status,
         },
         actor,
       );

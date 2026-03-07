@@ -91,6 +91,7 @@ export const useCreateCandidateReview = ({
     mutationFn: (data: CreateCandidateReviewDTO) => createCandidateReview(candidateId, data),
     onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: ["candidate-reviews", candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs", candidateId] });
       onSuccess?.(data, variables, onMutateResult, context);
     },
   });
@@ -121,6 +122,7 @@ export const useUpdateCandidateReview = ({
       updateCandidateReview(reviewId, data),
     onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: ["candidate-reviews", candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs", candidateId] });
       onSuccess?.(data, variables, onMutateResult, context);
     },
   });
@@ -143,6 +145,7 @@ export const useDeleteCandidateReview = ({
     mutationFn: (reviewId: string) => deleteCandidateReview(reviewId),
     onSuccess: (data, variables, onMutateResult, context) => {
       queryClient.invalidateQueries({ queryKey: ["candidate-reviews", candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs", candidateId] });
       onSuccess?.(data, variables, onMutateResult, context);
     },
   });

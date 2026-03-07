@@ -17,13 +17,16 @@ type UseDeleteJobOptions = {
 
 export const useDeleteJob = ({ config }: UseDeleteJobOptions = {}) => {
 	const queryClient = useQueryClient();
+	const { onSuccess, ...restConfig } = config || {};
 
 	return useMutation({
+		...restConfig,
 		mutationFn: deleteJob,
-		onSuccess: (_data, id) => {
+		onSuccess: (data, id, onMutateResult, context) => {
 			queryClient.invalidateQueries({ queryKey: ["jobs"] });
 			queryClient.removeQueries({ queryKey: ["jobs", id] });
+			queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs"] });
+			onSuccess?.(data, id, onMutateResult, context);
 		},
-		...config,
 	});
 };

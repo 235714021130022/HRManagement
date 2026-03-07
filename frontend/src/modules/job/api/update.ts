@@ -29,13 +29,15 @@ type UpdateJobMutationOptions = Omit<
 
 export const useUpdateJob = (config?: UpdateJobMutationOptions) => {
 	const queryClient = useQueryClient();
+	const { onSuccess, ...restConfig } = config || {};
 
 	return useMutation({
+		...restConfig,
 		mutationFn: ({ id, data }) => updateJob(id, data),
-		onSuccess: (data, variables, context) => {
+		onSuccess: (data, variables, _onMutateResult, context) => {
 			queryClient.invalidateQueries({ queryKey: ["jobs"] });
-			config?.onSuccess?.(data, variables, context);
+			queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs"] });
+			onSuccess?.(data, variables, context);
 		},
-		...config,
 	});
 };

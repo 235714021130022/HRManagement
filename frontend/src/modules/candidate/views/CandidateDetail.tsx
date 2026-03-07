@@ -21,6 +21,7 @@ import {
   ModalOverlay,
   Radio,
   RadioGroup,
+  Select,
   Spinner,
   Stack,
   Tab,
@@ -36,6 +37,8 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import type { ICandidate } from "../types";
 import { useCandidateByID } from "../api/get";
+import { useupdateCandidate } from "../api/update";
+import { usePotentialTypes } from "../api/potential_type";
 import {
   APPLICATION_STATUS_STEPS,
   getApplicationStatusIndex,
@@ -43,6 +46,7 @@ import {
 } from "../api/update_status";
 import { formatDateShort, formatMonth } from "../../../types";
 import InfoRow from "../components/InforRow";
+import CandidateAuditLog from "../components/CandidateAuditLog";
 import JobCandidate from "../components/JobCandidate";
 import ReviewCandidate from "../components/ReviewCandidate";
 import Stars from "../components/Star";
@@ -52,8 +56,10 @@ import CandidateCvTab, {
 import { FiUploadCloud } from "react-icons/fi";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import theme from "../../../theme";
+import { useNotify } from "../../../components/notification/NotifyProvider";
 
 export default function CandidateDetail() {
+  const notify = useNotify();
   const { id: paramId } = useParams();
   const navigate = useNavigate();
   const candidateId = paramId ?? "";
@@ -73,6 +79,29 @@ export default function CandidateDetail() {
       refetch();
     },
   });
+
+  const updateCandidateMutation = useupdateCandidate({
+    onSuccess: () => {
+      refetch();
+      notify({
+        type: "success",
+        message: "Updated successfully",
+        description: "Candidate has been moved to talent pool.",
+      });
+    },
+    onError: (error) => {
+      notify({
+        type: "error",
+        message: "Move failed",
+        description: error?.message || "Unable to move candidate to talent pool.",
+      });
+    },
+  });
+
+  const {
+    data: potentialTypeRes,
+    isLoading: isPotentialTypeLoading,
+  } = usePotentialTypes();
 
   const onClose = () => {
     navigate(-1);
@@ -108,6 +137,8 @@ export default function CandidateDetail() {
   const [selectedStatus, setSelectedStatus] = useState<string>(
     APPLICATION_STATUS_STEPS[0].value,
   );
+  const [isTalentPoolModalOpen, setIsTalentPoolModalOpen] = useState(false);
+  const [selectedPotentialTypeId, setSelectedPotentialTypeId] = useState<string>("");
 
   const currentStageIndex = useMemo(
     () => getApplicationStatusIndex(latestApplication?.status),
@@ -136,6 +167,42 @@ export default function CandidateDetail() {
       {
         onSuccess: () => {
           setIsStatusModalOpen(false);
+        },
+      },
+    );
+  };
+
+  const potentialTypeOptions = useMemo(
+    () => potentialTypeRes?.data ?? [],
+    [potentialTypeRes],
+  );
+
+  const openTalentPoolModal = () => {
+    setSelectedPotentialTypeId((candidate as ICandidate | undefined)?.potential_type_id ?? "");
+    setIsTalentPoolModalOpen(true);
+  };
+
+  const handleMoveToTalentPool = () => {
+    if (!selectedPotentialTypeId) {
+      notify({
+        type: "warning",
+        message: "Potential type is required",
+        description: "Please select a potential type before moving this candidate.",
+      });
+      return;
+    }
+
+    updateCandidateMutation.mutate(
+      {
+        id: candidateId,
+        data: {
+          is_potential: true,
+          potential_type_id: selectedPotentialTypeId,
+        },
+      },
+      {
+        onSuccess: () => {
+          setIsTalentPoolModalOpen(false);
         },
       },
     );
@@ -281,11 +348,11 @@ export default function CandidateDetail() {
                         />
 
                         <MenuList w={"fit-content"} minW={"unset"}>
-                          <MenuItem fontSize={"sm"}>
+                          {/* <MenuItem fontSize={"sm"}>
                             Move to Another Job
-                          </MenuItem>
+                          </MenuItem> */}
 
-                          <MenuItem fontSize={"sm"}>
+                          <MenuItem fontSize={"sm"} onClick={openTalentPoolModal}>
                             Move to Talent Pool
                           </MenuItem>
                         </MenuList>
@@ -514,12 +581,7 @@ export default function CandidateDetail() {
 
                     {/* HISTORY */}
                     <TabPanel p={4} h="100%" overflow="auto">
-                      <Text fontWeight="700" mb={2}>
-                        History
-                      </Text>
-                      <Text fontSize="sm" color="gray.500">
-                        (Audit log: status changes, info edits, CV uploads...)
-                      </Text>
+                      <CandidateAuditLog candidateId={candidateId} />
                     </TabPanel>
                   </TabPanels>
                 </Tabs>
@@ -579,6 +641,55 @@ export default function CandidateDetail() {
                 color={"white"}
                 onClick={handleSubmitStatus}
                 isLoading={updateStatusMutation.isPending}
+              >
+                SAVE
+              </Button>
+            </HStack>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      <Modal
+        isOpen={isTalentPoolModalOpen}
+        onClose={() => setIsTalentPoolModalOpen(false)}
+        isCentered
+        size="sm"
+      >
+        <ModalOverlay bg="blackAlpha.300" />
+        <ModalContent>
+          <ModalHeader textAlign="center">MOVE TO TALENT POOL</ModalHeader>
+          <ModalBody>
+            <VStack align="stretch" spacing={3}>
+              <Text fontSize="sm" color="gray.600">
+                Select a potential type for this candidate.
+              </Text>
+              <Select
+                placeholder={isPotentialTypeLoading ? "Loading potential types..." : "Select potential type"}
+                value={selectedPotentialTypeId}
+                onChange={(e) => setSelectedPotentialTypeId(e.target.value)}
+                isDisabled={isPotentialTypeLoading}
+              >
+                {potentialTypeOptions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </Select>
+            </VStack>
+          </ModalBody>
+          <ModalFooter>
+            <HStack spacing={2}>
+              <Button
+                variant="ghost"
+                onClick={() => setIsTalentPoolModalOpen(false)}
+              >
+                CANCEL
+              </Button>
+              <Button
+                background="#334371"
+                color="white"
+                onClick={handleMoveToTalentPool}
+                isLoading={updateCandidateMutation.isPending}
               >
                 SAVE
               </Button>

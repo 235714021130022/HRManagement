@@ -52,6 +52,7 @@ export class CandidateReviewService {
       metadata: {
         review_id: created.id,
         rating: dto.rating,
+        comment: dto.comment ?? null,
       },
     });
 
@@ -112,7 +113,10 @@ export class CandidateReviewService {
       message: "Updated candidate review",
       metadata: {
         review_id: reviewId,
-        rating: dto.rating,
+        old_rating: review.rating,
+        new_rating: updated.rating,
+        old_comment: review.comment ?? null,
+        new_comment: updated.comment ?? null,
       },
     });
 
@@ -144,6 +148,8 @@ export class CandidateReviewService {
       message: "Deleted candidate review",
       metadata: {
         review_id: reviewId,
+        rating: review.rating,
+        comment: review.comment ?? null,
       },
     });
 

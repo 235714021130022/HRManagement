@@ -29,13 +29,15 @@ type updateCandidateMutaionOptions = Omit< // lấy 1 type, bỏ 1 thuộc tính
 
 export const useupdateCandidate = (config?: updateCandidateMutaionOptions) => {
     const queryClient = useQueryClient();
+    const { onSuccess, ...restConfig } = config || {};
 
     return useMutation({
+        ...restConfig,
         mutationFn: ({ id, data}) => updateCandidate(id, data),
-        onSuccess: (data, variables, context) => {
+        onSuccess: (data, variables, _onMutateResult, context) => {
             queryClient.invalidateQueries({ queryKey: ['candidate']});
-            config?.onSuccess?.(data, variables, context);
+            queryClient.invalidateQueries({ queryKey: ['candidate-audit-logs', variables.id] });
+            onSuccess?.(data, variables, context);
         },
-        ...config
     })
 }

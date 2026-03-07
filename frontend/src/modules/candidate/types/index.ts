@@ -84,3 +84,19 @@ export interface ICandidateReview {
     employee_name?: string | null;
   } | null;
 }
+
+export interface ICandidateAuditLog {
+  id: string;
+  candidate_id: string;
+  actor_employee_id?: string | null;
+  actor_type?: string | null;
+  actor_role?: string | null;
+  action: string;
+  message: string;
+  metadata?: Record<string, any> | null;
+  created_at: string | Date;
+  actorEmployee?: {
+    id: string;
+    employee_name?: string | null;
+  } | null;
+}

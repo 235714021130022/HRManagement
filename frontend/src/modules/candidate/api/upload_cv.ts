@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import apiClient from "../../../lib/api";
 import { URL_API_CANDIDATE } from "../../../constant/config";
-import type { ICandidateData } from "./get";
 
 type UploadCvVariables = {
   candidateId: string;
@@ -54,16 +53,18 @@ type UseUploadCvOptions = Omit<
 
 export const useUploadCandidateCv = (config?: UseUploadCvOptions) => {
   const queryClient = useQueryClient();
+  const { onSuccess, ...restConfig } = config || {};
 
   return useMutation({
+    ...restConfig,
     mutationFn: uploadCv,
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data, variables, _onMutateResult, context) => {
       // refresh list + detail
       queryClient.invalidateQueries({ queryKey: ["candidate"] });
       queryClient.invalidateQueries({ queryKey: ["candidate", variables.candidateId] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs", variables.candidateId] });
 
-      config?.onSuccess?.(data, variables, context);
+      onSuccess?.(data, variables, context);
     },
-    ...config,
   });
 };

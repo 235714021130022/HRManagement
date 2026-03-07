@@ -16,9 +16,17 @@ export class CandidateReviewController {
     const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     if (!token) throw new UnauthorizedException("Missing Bearer token");
 
-    const payload: any = await this.jwtService.verifyAsync(token, {
+    let payload: any;
+    try {
+      payload = await this.jwtService.verifyAsync(token, {
         secret: process.env.ACCESS_TOKEN_SECRET,
-        });
+      });
+    } catch (error: any) {
+      if (error?.name === "TokenExpiredError") {
+        throw new UnauthorizedException("Access token expired");
+      }
+      throw new UnauthorizedException("Invalid access token");
+    }
 
     const userId = payload.id; // token payload user id
     const rawRole = payload.roles?.[0];

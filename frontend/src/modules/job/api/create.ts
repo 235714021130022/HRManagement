@@ -22,12 +22,15 @@ type UseCreateJobOptions = {
 
 export const useCreateJob = ({ config }: UseCreateJobOptions = {}) => {
 	const queryClient = useQueryClient();
+	const { onSuccess, ...restConfig } = config || {};
 
 	return useMutation({
+		...restConfig,
 		mutationFn: createJob,
-		onSuccess: () => {
+		onSuccess: (data, variables, onMutateResult, context) => {
 			queryClient.invalidateQueries({ queryKey: ["jobs"] });
+			queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs"] });
+			onSuccess?.(data, variables, onMutateResult, context);
 		},
-		...config,
 	});
 };

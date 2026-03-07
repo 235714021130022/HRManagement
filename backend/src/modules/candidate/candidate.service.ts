@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Candidate } from '@prisma/client';
 import { generateCode } from 'src/common/utils/generate-code.util';
 import { PrismaService } from 'src/prisma.service';
@@ -16,8 +16,47 @@ export class CandidateService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
+  private async validatePotentialType(potentialTypeId: string) {
+    const potentialType = await this.prisma.setting_Potential_Type.findFirst({
+      where: {
+        id: potentialTypeId,
+        is_active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+    });
+
+    if (!potentialType) {
+      throw new BadRequestException('Potential type is invalid or inactive');
+    }
+
+    return potentialType;
+  }
+
   async create(data: CreateCandidateDto, actor?: CandidateAuditActor): Promise<Candidate> {
     const { candidate_code, candidateExperiences, ...rest } = data;
+
+    let potentialTypeName: string | null = null;
+    const normalizedPotentialTypeId = data.potential_type_id || undefined;
+    const normalizedIsPotential =
+      normalizedPotentialTypeId && data.is_potential !== false
+        ? true
+        : data.is_potential;
+
+    if (normalizedIsPotential === true && !normalizedPotentialTypeId) {
+      throw new BadRequestException('potential_type_id is required when is_potential is true');
+    }
+
+    if (normalizedIsPotential === false && normalizedPotentialTypeId) {
+      throw new BadRequestException('Cannot set potential_type_id when is_potential is false');
+    }
+
+    if (normalizedPotentialTypeId) {
+      const potentialType = await this.validatePotentialType(normalizedPotentialTypeId);
+      potentialTypeName = potentialType.name;
+    }
 
     const lastCandidate = await this.prisma.candidate.findFirst({
       where: {
@@ -39,6 +78,8 @@ export class CandidateService {
     const created = await this.prisma.candidate.create({
       data: {
         ...rest,
+        is_potential: normalizedIsPotential ?? false,
+        potential_type_id: normalizedIsPotential ? normalizedPotentialTypeId : undefined,
         candidate_code: code,
         date_of_birth: data.date_of_birth ? new Date(data.date_of_birth) : undefined,
         date_applied: data.date_applied ? new Date(data.date_applied) : undefined,
@@ -60,6 +101,9 @@ export class CandidateService {
       metadata: {
         candidate_code: created.candidate_code,
         candidate_name: created.candidate_name,
+        is_potential: created.is_potential,
+        potential_type_id: created.potential_type_id,
+        potential_type_name: potentialTypeName,
       },
       ...actor,
     });
@@ -104,6 +148,13 @@ export class CandidateService {
                 select: {
                     id: true,
                 }
+            },
+            potential: {
+              select: {
+                id: true,
+                name: true,
+                is_active: true,
+              }
             }
             }
       }),
@@ -152,6 +203,14 @@ export class CandidateService {
                 },
               },
             },
+            potential: {
+              select: {
+                id: true,
+                name: true,
+                is_active: true,
+              },
+            },
+            
             }
     });
     if (!candidate) throw new NotFoundException('Candidate not found');
@@ -161,11 +220,47 @@ export class CandidateService {
 async update(id: string, data: UpdateCandidateDto, actor?: CandidateAuditActor): Promise<Candidate> {
   const candidate = await this.prisma.candidate.findUnique({
     where: { id },
-    select: { id: true },
+    select: {
+      id: true,
+      is_potential: true,
+      potential_type_id: true,
+      potential: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
   });
   if (!candidate) throw new NotFoundException("Candidate not found");
 
   const { candidateExperiences, ...rest } = data;
+
+  const hasPotentialTypeField = Object.prototype.hasOwnProperty.call(data, 'potential_type_id');
+  const hasIsPotentialField = Object.prototype.hasOwnProperty.call(data, 'is_potential');
+  let nextPotentialTypeId = hasPotentialTypeField
+    ? data.potential_type_id ?? null
+    : candidate.potential_type_id;
+  let nextIsPotential = hasIsPotentialField ? data.is_potential : candidate.is_potential;
+  let potentialTypeName: string | null = candidate.potential?.name ?? null;
+
+  if (nextPotentialTypeId && nextIsPotential !== false) {
+    nextIsPotential = true;
+  }
+
+  if (nextIsPotential === false) {
+    nextPotentialTypeId = null;
+    potentialTypeName = null;
+  }
+
+  if (nextIsPotential === true && !nextPotentialTypeId) {
+    throw new BadRequestException('potential_type_id is required when is_potential is true');
+  }
+
+  if (nextPotentialTypeId) {
+    const potentialType = await this.validatePotentialType(nextPotentialTypeId);
+    potentialTypeName = potentialType.name;
+  }
 
   const createExp = candidateExperiences?.filter((e) => !e.id) ?? [];
   const updateExp = candidateExperiences?.filter((e) => e.id && e.is_active !== false) ?? [];
@@ -211,22 +306,46 @@ async update(id: string, data: UpdateCandidateDto, actor?: CandidateAuditActor):
     where: { id },
     data: {
       ...rest,
+      is_potential: nextIsPotential,
+      potential_type_id: nextPotentialTypeId,
       date_of_birth: rest.date_of_birth ? new Date(rest.date_of_birth) : undefined,
       date_applied: rest.date_applied ? new Date(rest.date_applied) : undefined,
       updated_at: new Date(),
       ...(candidateExperiences ? { candidateExperiences: nestedExp } : {}),
     },
     include: {
-      candidateExperiences: { where: { is_active: true } }, // để trả về chỉ exp active
+      candidateExperiences: { where: { is_active: true } },
+      potential: {
+              select: {
+                id: true,
+                name: true,
+                is_active: true,
+              }
+            }
     },
   });
 
   await this.auditLogService.logCandidateActivity({
     candidateId: id,
-    action: 'CANDIDATE_UPDATED',
-    message: 'Updated candidate profile',
+    action:
+      !candidate.is_potential && updated.is_potential
+        ? 'CANDIDATE_MOVED_TO_TALENT_POOL'
+        : candidate.is_potential && !updated.is_potential
+          ? 'CANDIDATE_REMOVED_FROM_TALENT_POOL'
+          : 'CANDIDATE_UPDATED',
+    message:
+      !candidate.is_potential && updated.is_potential
+        ? 'Moved candidate to talent pool'
+        : candidate.is_potential && !updated.is_potential
+          ? 'Removed candidate from talent pool'
+          : 'Updated candidate profile',
     metadata: {
       updated_fields: Object.keys(rest),
+      is_potential_before: candidate.is_potential,
+      is_potential_after: updated.is_potential,
+      potential_type_id_before: candidate.potential_type_id,
+      potential_type_id_after: updated.potential_type_id,
+      potential_type_name_after: potentialTypeName,
       experience_changes: {
         created: createExp.length,
         updated: updateExp.length,

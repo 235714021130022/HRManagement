@@ -100,6 +100,8 @@ export class ApplicationService {
       metadata: {
         application_id: created.id,
         recruitment_infor_id,
+        recruitment_post_title: recruitment_infor.post_title,
+        recruitment_internal_title: recruitment_infor.internal_title,
       },
       ...actor,
     });
@@ -216,6 +218,7 @@ export class ApplicationService {
             id: true,
             recruitment_code: true,
             post_title: true,
+            internal_title: true,
             positionPost: {
               select: {
                 id: true,
@@ -235,6 +238,8 @@ export class ApplicationService {
         application_id: id,
         from_status: existed.status,
         to_status: data.status,
+        recruitment_post_title: updated.recruitment_infor?.post_title,
+        recruitment_internal_title: updated.recruitment_infor?.internal_title,
       },
       ...actor,
     });
@@ -245,7 +250,17 @@ export class ApplicationService {
   async remove(id: string, actor?: CandidateAuditActor) {
     const existed = await this.prisma.application.findUnique({
       where: { id },
-      select: { id: true, candidate_id: true },
+      select: {
+        id: true,
+        candidate_id: true,
+        recruitment_infor: {
+          select: {
+            id: true,
+            post_title: true,
+            internal_title: true,
+          },
+        },
+      },
     });
 
     if (!existed) {
@@ -262,6 +277,9 @@ export class ApplicationService {
       message: 'Removed candidate from recruitment application',
       metadata: {
         application_id: id,
+        recruitment_infor_id: existed.recruitment_infor?.id,
+        recruitment_post_title: existed.recruitment_infor?.post_title,
+        recruitment_internal_title: existed.recruitment_infor?.internal_title,
       },
       ...actor,
     });

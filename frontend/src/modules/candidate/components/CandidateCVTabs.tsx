@@ -1,6 +1,6 @@
-import React, { useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
-import { Box, Button, Center, Flex, Text, VStack } from "@chakra-ui/react";
-import { FiUploadCloud } from "react-icons/fi";
+import React, { useMemo, useRef, forwardRef, useImperativeHandle } from "react";
+import { Box, Center, Flex, Text, VStack } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
 import apiClient from "../../../lib/api";
 import { BASE_URL, URL_API_CANDIDATE } from "../../../constant/config";
 import { useNotify } from "../../../components/notification/NotifyProvider";
@@ -19,15 +19,14 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
 ({ candidateId, cvFile, onUploaded, maxMb = 5, acceptExt = ["pdf","doc","docx"] }, ref) => {
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
   const notify = useNotify();
+  const queryClient = useQueryClient();
 
   const pickFile = () => inputRef.current?.click();
 
   useImperativeHandle(ref, () => ({
     pickFile,
   }));
-  const [picked, setPicked] = useState<File | null>(null);
   const hasCv = !!cvFile;
 
   const cvUrl = useMemo(() => {
@@ -62,14 +61,12 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
       return;
     }
 
-    setPicked(f);
     // auto upload luôn cho đúng "1 nút"
     void upload(f);
     e.target.value = "";
   };
 
   const upload = async (file: File) => {
-    setIsUploading(true);
     try {
       const form = new FormData();
       form.append("cv", file);
@@ -85,12 +82,10 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
         });
       }
 
-      setPicked(null);
+      queryClient.invalidateQueries({ queryKey: ["candidate-audit-logs", candidateId] });
       await onUploaded?.();
     } catch (err: any) {
       alert(err?.response?.data?.message || err?.message || "Upload thất bại");
-    } finally {
-      setIsUploading(false);
     }
   };
 
