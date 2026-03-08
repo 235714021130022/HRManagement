@@ -30,10 +30,13 @@ import { ModalConfirm } from "../../../components/common/ModalConfirm";
 import { useNotify } from "../../../components/notification/NotifyProvider";
 
 import { useGetCandidate } from "../api/get";
-import type { ICandidate } from "../types";
-import { formatDateShort } from "../../../types";
-import CandidateModal from "../components/CandidateModal";
+import { useCreateCandidate } from "../api/create";
+import { useupdateCandidate } from "../api/update";
+import { useUploadCandidateCv } from "../api/upload_cv";
+import { useUploadCandidateAvatar } from "../api/upload_avatar";
+import type { CandidateCreatePayload, ICandidate } from "../types";
 import { CANDIDATE_STATUS_DISPLAY, CandidateStatus, type CandidateStatusType } from "../../../constant";
+import CandidateCreateModal from "../components/CandidateModal";
 
 const CANDIDATE_STATUS_FILTER = {
   All: "All",
@@ -57,9 +60,7 @@ export function Candidates() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [selectedCandidate, setSelectedCandidate] = useState<
-    ICandidate | undefined
-  >(undefined);
+  const [selectedCandidate, setSelectedCandidate] = useState<ICandidate | undefined>(undefined);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ICandidate | null>(null);
@@ -90,6 +91,10 @@ export function Candidates() {
     sortBy,
     sortOrder,
   });
+  const createCandidateMutation = useCreateCandidate();
+  const updateCandidateMutation = useupdateCandidate();
+  const uploadCvMutation = useUploadCandidateCv();
+  const uploadAvatarMutation = useUploadCandidateAvatar();
 
   const items = Array.isArray(candidateRes?.data) ? candidateRes.data : [];
   const pagination = candidateRes?.pagination ?? {
@@ -156,6 +161,84 @@ status: (_: any, row: ICandidate & { id: string }) => {
         </Badge>
       );
     },
+  };
+
+  const getErrorMessage = (error: unknown) => {
+    const e = error as { response?: { data?: { message?: unknown } }; message?: string };
+    const msg = e?.response?.data?.message ?? e?.message;
+
+    if (Array.isArray(msg)) return msg.join(", ");
+    if (typeof msg === "string" && msg.trim()) return msg;
+    return "An unexpected error occurred.";
+  };
+
+  const handleSubmitCandidate = async (payload: CandidateCreatePayload) => {
+    const { cv_file, avatar_file, ...candidateData } = payload;
+
+    try {
+      if (modalMode === "edit" && selectedCandidate?.id) {
+        const updated = await updateCandidateMutation.mutateAsync({
+          id: selectedCandidate.id,
+          data: candidateData,
+        });
+
+        if (cv_file) {
+          await uploadCvMutation.mutateAsync({
+            candidateId: updated.id,
+            file: cv_file,
+            currentCvFile: selectedCandidate.cv_file ?? null,
+          });
+        }
+
+        if (avatar_file) {
+          await uploadAvatarMutation.mutateAsync({
+            candidateId: updated.id,
+            file: avatar_file,
+            currentAvatarFile: selectedCandidate.avatar_file ?? null,
+          });
+        }
+
+        notify({
+          type: "success",
+          message: "Updated",
+          description: "Candidate has been updated successfully.",
+        });
+      } else {
+        const created = await createCandidateMutation.mutateAsync(candidateData);
+
+        if (cv_file) {
+          await uploadCvMutation.mutateAsync({
+            candidateId: created.id,
+            file: cv_file,
+            currentCvFile: created.cv_file ?? null,
+          });
+        }
+
+        if (avatar_file) {
+          await uploadAvatarMutation.mutateAsync({
+            candidateId: created.id,
+            file: avatar_file,
+            currentAvatarFile: created.avatar_file ?? null,
+          });
+        }
+
+        notify({
+          type: "success",
+          message: "Created",
+          description: "Candidate has been created successfully.",
+        });
+      }
+
+      setModalOpen(false);
+      setSelectedCandidate(undefined);
+      await refetch?.();
+    } catch (error) {
+      notify({
+        type: "error",
+        message: modalMode === "edit" ? "Update failed" : "Create failed",
+        description: getErrorMessage(error),
+      });
+    }
   };
 
 
@@ -316,17 +399,24 @@ status: (_: any, row: ICandidate & { id: string }) => {
           }}
         />
 
-        {/* <CandidateModal
+        <CandidateCreateModal
           isOpen={modalOpen}
+          mode={modalMode}
+          data={selectedCandidate}
           onClose={() => {
             setModalOpen(false);
             setSelectedCandidate(undefined);
           }}
-          mode={modalMode}
-          data={selectedCandidate}
-          onSuccess={() => refetch?.()}
-        /> */}
+          onSubmit={handleSubmitCandidate}
+          isSubmitting={
+            createCandidateMutation.isPending ||
+            updateCandidateMutation.isPending ||
+            uploadCvMutation.isPending ||
+            uploadAvatarMutation.isPending
+          }
+        />
       </VStack>
     </>
   );
 }
+

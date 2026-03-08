@@ -11,12 +11,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = ""
+  url = env("DATABASE_URL")
 }
 
 enum GenderEmployee {
   Male
-  Femail
+  Female
 }
 //#region VAI TRO - MD
 model Role {
@@ -49,7 +49,6 @@ model Employee {
   roles EmployeeRole[] // 🛡 Quan hệ nhiều-nhiều với Role thông qua bảng EmployeeRole
   contactPersonInRecruitment Recruitment_Infor[] // 📌 Là người liên hệ trong các đợt tuyển dụng
   referrerOfCandidates Candidate[] // 🎯 Là người giới thiệu ứng viên
-  interviewers Schedule_Interviewers[] // 🎤 Là người phỏng vấn trong các lịch phỏng vấn
   jobApplications Job[] // 📋 Các công việc được giao cho nhân viên
   registerCompany CompanyRegistrationRequest[] // 🏢 Các yêu cầu đăng ký công ty do nhân viên tạo
   reviewCandidate CandidateReview[]
@@ -269,7 +268,7 @@ model Candidate {
   id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid // ❌ Khóa chính UUID, dùng để view/edit/delete, không show table
   candidate_code String? @db.VarChar(50) @unique                    // 🟡 Mã ứng viên (unique) - nên gộp hiển thị dưới tên ở table
   candidate_name String? @db.VarChar(300)                           // ✅ Tên ứng viên - cột quan trọng nhất trên table
-
+  
   date_of_birth DateTime? @db.Date                                  // ❌ Ngày sinh - để detail/form, không cần ở list
   gender String? @db.VarChar(50)                                    // ❌ Giới tính - để detail/form, list không cần
 
@@ -296,6 +295,8 @@ model Candidate {
   potential Setting_Potential_Type? @relation(                       fields: [potential_type_id], references: [id], onDelete: Cascade, onUpdate: Cascade ) // 🟡 Quan hệ loại tiềm năng - nếu dùng, show tên loại ở detail/
   cv_file           String?  @db.VarChar(500)
   cv_uploaded_at    DateTime?
+  avatar_file       String?  @db.VarChar(500)
+  avatar_uploaded_at DateTime?
   created_at DateTime? @default(now()) @db.Timestamp(6)              // ❌ Ngày tạo - thường không cần ở list (chỉ cần nếu audit)
   updated_at DateTime? @default(now()) @db.Timestamp(6)              // ❌ Ngày cập nhật - thường không cần ở list
 
@@ -428,19 +429,7 @@ model Interview_Schedule {
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
-  interviewers Schedule_Interviewers[]
   candidates Schedules_Candidates[]
-}
-
-//#region HOIDONGPHONGVAN - HAVED
-model Schedule_Interviewers {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  interview_schedule_id String @db.Uuid
-  employee_id String @db.Uuid
-  interviewSchedule Interview_Schedule @relation(fields: [interview_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  interviewer Employee @relation(fields: [employee_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
-  @@unique([interview_schedule_id, employee_id])
 }
 
 //#region UNGVIEN - HAVED

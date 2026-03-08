@@ -31,6 +31,9 @@ export interface ICandidate {
 
   cv_uploaded_at?: Date | null;
 
+  avatar_file?: string | null;
+  avatar_uploaded_at?: Date | null;
+
   // ===== Relations =====
   recruitment_infor?: IRecruitmentInfor | null;
   referrer?: IEmployee | null;
@@ -100,3 +103,89 @@ export interface ICandidateAuditLog {
     employee_name?: string | null;
   } | null;
 }
+
+export type CandidateModalMode = "add" | "edit";
+
+export type OptionType = {
+  value: string;
+  label: string;
+};
+
+export type CandidateExperienceForm = {
+  id?: string;
+  company_name: string;
+  position: string;
+  from_month: string;
+  to_month: string;
+  job_description: string;
+  is_active?: boolean;
+};
+
+export type CandidateCreateForm = {
+  candidate_name: string;
+  date_of_birth: string;
+  gender: string;
+  phone_number: string;
+  email: string;
+  address: string;
+  country: string;
+  provice: string;
+  district: string;
+  date_applied: string;
+  referrer_id: string;
+  is_active: boolean;
+  is_potential: boolean;
+  potential_type_id: string;
+  status: string;
+  cv_file: File | null;
+  avatar_file: File | null;
+  avatar_preview: string;
+  current_avatar_file: string;
+  current_cv_file: string;
+  experiences: CandidateExperienceForm[];
+};
+
+export type CandidateExperiencePayload = {
+  id?: string;
+  company_name?: string;
+  position?: string;
+  from_month?: string | null;
+  to_month?: string | null;
+  job_description?: string;
+  is_active?: boolean;
+};
+
+export type CandidateCreatePayload = {
+  candidate_name?: string;
+  date_of_birth?: string | null;
+  gender?: string;
+  phone_number?: string;
+  email?: string;
+  address?: string;
+  country?: string;
+  provice?: string;
+  district?: string;
+  date_applied?: string | null;
+  referrer_id?: string | null;
+  is_active: boolean;
+  is_potential: boolean;
+  potential_type_id?: string | null;
+  status?: string;
+  cv_file?: File | null;
+  avatar_file?: File | null;
+  candidateExperiences: CandidateExperiencePayload[];
+};
+
+export type CandidateUpsertPayload = Omit<CandidateCreatePayload, "cv_file" | "avatar_file">;
+
+export interface CandidateCreateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  mode?: CandidateModalMode;
+  data?: ICandidate;
+  onSubmit: (payload: CandidateCreatePayload) => Promise<void> | void;
+  referrerOptions?: OptionType[];
+  potentialTypeOptions?: OptionType[];
+  isSubmitting?: boolean;
+}
+

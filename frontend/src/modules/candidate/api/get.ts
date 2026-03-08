@@ -54,7 +54,7 @@ export const useGetCandidate = (
     >
 ) => {
     return useQuery({
-        queryKey: ["employee", params],
+        queryKey: ["candidate", params],
         queryFn: () => getAllCandidate(params),
         placeholderData: keepPreviousData,
         ...config
@@ -66,7 +66,7 @@ export const getCandidateByID = async (id: string): Promise<ICandidateData> => {
     const payload = res.data?.data ?? res.data;
 
     const raw = payload?.data ?? payload;
-    if(!raw) throw new Error('Employee register not found');
+    if(!raw) throw new Error('Candidate not found');
     return raw as ICandidateData
 }
 

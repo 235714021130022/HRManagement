@@ -16,7 +16,6 @@ async create(
 ) {
   const {
     sche_code,
-    interviewer_ids,
     candidate_ids,
     ...rest
   } = data;
@@ -58,16 +57,6 @@ async create(
         ? new Date(rest.interview_date)
         : null,
       times: rest.times ? new Date(rest.times) : null,
-
-      // 🔥 nested create
-      interviewers: interviewer_ids
-        ? {
-            create: interviewer_ids.map((id) => ({
-              employee_id: id,
-            })),
-          }
-        : undefined,
-
       candidates: candidate_ids
         ? {
             create: candidate_ids.map((id) => ({
@@ -77,9 +66,6 @@ async create(
         : undefined,
     },
     include: {
-      interviewers: {
-        include: { interviewer: true },
-      },
       candidates: {
         include: { candidate: true },
       },
@@ -133,11 +119,6 @@ async create(
       },
       include: {
         scheduleType: true,
-        interviewers: {
-            include: {
-                interviewer: true,
-            },
-            },
             candidates: {
             include: {
                 candidate: true,
@@ -163,7 +144,6 @@ async create(
       where: { id },
       include: {
         scheduleType: true,
-        interviewers: true,
         candidates: true,
       },
     });
@@ -195,18 +175,6 @@ async create(
     },
   });
 
-  if (interviewer_ids) {
-    await tx.schedule_Interviewers.deleteMany({
-      where: { interview_schedule_id: id },
-    });
-
-    await tx.schedule_Interviewers.createMany({
-      data: interviewer_ids.map((empId) => ({
-        interview_schedule_id: id,
-        employee_id: empId,
-      })),
-    });
-  }
 
   if (candidate_ids) {
     await tx.schedules_Candidates.deleteMany({
@@ -224,7 +192,6 @@ async create(
   return tx.interview_Schedule.findUnique({
     where: { id },
     include: {
-      interviewers: { include: { interviewer: true } },
       candidates: { include: { candidate: true } },
     },
   });

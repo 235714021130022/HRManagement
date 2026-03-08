@@ -51,6 +51,30 @@ const cvInterceptor = FileInterceptor('cv', {
     },
   }),
 });
+
+const avatarInterceptor = FileInterceptor('avatar', {
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = [
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+    ].includes(file.mimetype);
+
+    cb(ok ? null : new Error('Invalid file type'), ok);
+  },
+  storage: diskStorage({
+    destination: './uploads/avatar',
+    filename: (req, file, cb) => {
+      const safe = sanitizeFilename(file.originalname);
+      const ext = safe.includes('.') ? safe.split('.').pop() : '';
+      const base = ext ? safe.slice(0, -(ext.length + 1)) : safe;
+      const filename = `${Date.now()}-${base}.${ext || 'file'}`;
+      cb(null, filename);
+    },
+  }),
+});
 @Controller('candidate')
 export class CandidateController {
   constructor(private readonly candidateService: CandidateService) {}
@@ -136,6 +160,47 @@ export class CandidateController {
       cv_file: updated.cv_file,
       cv_url: updated.cv_file ? `/uploads/cv/${updated.cv_file}` : null,
       cv_uploaded_at: updated.cv_uploaded_at,
+    };
+  }
+
+  @Post('upload-avatar')
+  @UseInterceptors(avatarInterceptor)
+  async uploadAvatarPost(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('candidate_id') candidateId: string,
+    @Req() req: any,
+  ) {
+    if (!candidateId) throw new BadRequestException('candidate_id is required');
+    if (!file) throw new BadRequestException('avatar file is required');
+
+    const actor = extractActorFromRequest(req);
+    const updated = await this.candidateService.replaceAvatar(candidateId, file.filename, actor);
+
+    return {
+      message: 'Upload avatar success',
+      avatar_file: updated.avatar_file,
+      avatar_url: updated.avatar_file ? `/uploads/avatar/${updated.avatar_file}` : null,
+      avatar_uploaded_at: updated.avatar_uploaded_at,
+    };
+  }
+
+  @Put(':id/avatar')
+  @UseInterceptors(avatarInterceptor)
+  async uploadAvatarPut(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req: any,
+  ) {
+    if (!file) throw new BadRequestException('avatar file is required');
+
+    const actor = extractActorFromRequest(req);
+    const updated = await this.candidateService.replaceAvatar(id, file.filename, actor);
+
+    return {
+      message: 'Replace avatar success',
+      avatar_file: updated.avatar_file,
+      avatar_url: updated.avatar_file ? `/uploads/avatar/${updated.avatar_file}` : null,
+      avatar_uploaded_at: updated.avatar_uploaded_at,
     };
   }
 }

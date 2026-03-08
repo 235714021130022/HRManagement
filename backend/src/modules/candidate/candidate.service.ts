@@ -91,7 +91,7 @@ export class CandidateService {
             }))
         }: undefined,
       },
-      include: {candidateExperiences: true}
+      include: {candidateExperiences: true, statusApplication: true}
     });
 
     await this.auditLogService.logCandidateActivity({
@@ -321,7 +321,8 @@ async update(id: string, data: UpdateCandidateDto, actor?: CandidateAuditActor):
                 name: true,
                 is_active: true,
               }
-            }
+            },
+            statusApplication: true
     },
   });
 
@@ -417,4 +418,41 @@ async update(id: string, data: UpdateCandidateDto, actor?: CandidateAuditActor):
     return updated;
       
     }
+
+  async replaceAvatar(candidate_id: string, newFileName: string, actor?: CandidateAuditActor){
+    const candidate = await this.prisma.candidate.findUnique({
+      where: {id: candidate_id},
+      select: {id: true, avatar_file: true},
+    });
+
+    if(!candidate) throw new NotFoundException('Candidate not found');
+
+    if(candidate.avatar_file){
+      const oldPath = path.join(process.cwd(), 'uploads', 'avatar', candidate.avatar_file);
+      fs.promises.unlink(oldPath).catch(() => {});
+    }
+
+    const updated = await this.prisma.candidate.update({
+      where: { id: candidate_id },
+      data: {
+        avatar_file: newFileName,
+        avatar_uploaded_at: new Date(),
+      },
+      select: {
+        id: true,
+        avatar_file: true,
+        avatar_uploaded_at: true,
+      },
+    });
+
+    await this.auditLogService.logCandidateActivity({
+      candidateId: candidate_id,
+      action: 'CANDIDATE_AVATAR_REPLACED',
+      message: 'Uploaded/Replaced candidate avatar file',
+      metadata: { avatar_file: newFileName },
+      ...actor,
+    });
+
+    return updated;
+  }
 }

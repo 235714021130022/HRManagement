@@ -90,7 +90,7 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
   };
 
   return (
-    <Box p={4}>
+    <Box p={4} >
       {/* ONLY ONE BUTTON - TOP RIGHT */}
       <Flex justify="flex-end" mb={-3}>
         <input
@@ -109,7 +109,7 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
           border="1px solid"
           borderColor="gray.200"
           borderRadius="md"
-          h="520px"
+          h="580px"
           overflow="hidden"
           bg="gray.50"
         >
@@ -124,7 +124,7 @@ const CandidateCvTab = forwardRef<CandidateCvTabHandle, CandidateCvTabProps>(
           border="1px solid"
           borderColor="gray.200"
           borderRadius="md"
-          h="520px"
+          h="560px"
           bg="gray.50"
         >
           <VStack spacing={2}>

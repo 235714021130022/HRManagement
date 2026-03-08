@@ -35,10 +35,5 @@ export class CreateInterviewScheduleDto {
   @IsOptional()
   @IsArray()
   @IsUUID('all', { each: true })
-  interviewer_ids?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @IsUUID('all', { each: true })
   candidate_ids?: string[];
 }

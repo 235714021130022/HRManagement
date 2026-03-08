@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Avatar,
   Box,
@@ -19,8 +19,6 @@ import {
   ModalFooter,
   ModalHeader,
   ModalOverlay,
-  Radio,
-  RadioGroup,
   Select,
   Spinner,
   Stack,
@@ -31,13 +29,20 @@ import {
   Tabs,
   Text,
   VStack,
+  Input,
+  InputGroup,
+  InputLeftElement,
 } from "@chakra-ui/react";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
-
+import { SearchIcon } from "@chakra-ui/icons";
+import { useDebounce } from "use-debounce";
+import SearchCombobox from "../../../components/common/SearchCombobox";
 import type { ICandidate } from "../types";
 import { useCandidateByID } from "../api/get";
 import { useupdateCandidate } from "../api/update";
+import { useUploadCandidateAvatar } from "../api/upload_avatar";
+import { useCreateApplication } from "../api/create_application";
 import { usePotentialTypes } from "../api/potential_type";
 import {
   APPLICATION_STATUS_STEPS,
@@ -53,17 +58,22 @@ import Stars from "../components/Star";
 import CandidateCvTab, {
   type CandidateCvTabHandle,
 } from "../components/CandidateCVTabs";
+import UpdateStatus from "../components/UpdateStatus";
 import { FiUploadCloud } from "react-icons/fi";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import theme from "../../../theme";
 import { useNotify } from "../../../components/notification/NotifyProvider";
+import { BASE_URL } from "../../../constant/config";
 
+import { useGetInform } from "../../recruit_inf/api/get";
+import type { IRecruitmentInfor } from "../../recruit_inf/types";
 export default function CandidateDetail() {
   const notify = useNotify();
   const { id: paramId } = useParams();
   const navigate = useNavigate();
   const candidateId = paramId ?? "";
   const cvTabRef = useRef<CandidateCvTabHandle | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const pickFile = () => {
     cvTabRef.current?.pickFile();
   };
@@ -81,20 +91,22 @@ export default function CandidateDetail() {
   });
 
   const updateCandidateMutation = useupdateCandidate({
-    onSuccess: () => {
-      refetch();
-      notify({
-        type: "success",
-        message: "Updated successfully",
-        description: "Candidate has been moved to talent pool.",
-      });
-    },
-    onError: (error) => {
-      notify({
-        type: "error",
-        message: "Move failed",
-        description: error?.message || "Unable to move candidate to talent pool.",
-      });
+    config: {
+      onSuccess: () => {
+        refetch();
+        notify({
+          type: "success",
+          message: "Updated successfully",
+          description: "Candidate has been moved to talent pool.",
+        });
+      },
+      onError: (error: Error) => {
+        notify({
+          type: "error",
+          message: "Move failed",
+          description: error?.message || "Unable to move candidate to talent pool.",
+        });
+      },
     },
   });
 
@@ -102,6 +114,24 @@ export default function CandidateDetail() {
     data: potentialTypeRes,
     isLoading: isPotentialTypeLoading,
   } = usePotentialTypes();
+
+  const uploadAvatarMutation = useUploadCandidateAvatar({
+    onSuccess: () => {
+      refetch();
+      notify({
+        type: "success",
+        message: "Avatar updated",
+        description: "Candidate avatar has been uploaded successfully.",
+      });
+    },
+    onError: (error) => {
+      notify({
+        type: "error",
+        message: "Upload failed",
+        description: error.message || "Unable to upload avatar.",
+      });
+    },
+  });
 
   const onClose = () => {
     navigate(-1);
@@ -133,12 +163,72 @@ export default function CandidateDetail() {
 
   const applicationStatus = latestApplication?.status || "No status yet";
 
+  const avatarUrl = useMemo(() => {
+    if (!candidate?.avatar_file) return undefined;
+    return `${BASE_URL}/uploads/avatar/${candidate.avatar_file}`;
+  }, [candidate?.avatar_file]);
+
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<string>(
-    APPLICATION_STATUS_STEPS[0].value,
-  );
   const [isTalentPoolModalOpen, setIsTalentPoolModalOpen] = useState(false);
   const [selectedPotentialTypeId, setSelectedPotentialTypeId] = useState<string>("");
+  
+
+  const [showAssignPanel, setShowAssignPanel] = useState(false);
+  const [jobSearch, setJobSearch] = useState("");
+  const [selectedRecruitmentId, setSelectedRecruitmentId] = useState("");
+  const [assigningNote, setAssigningNote] = useState("");
+  const [debouncedJobSearch] = useDebounce(jobSearch, 300);
+
+  const { data: recruitmentRes, isLoading: isLoadingRecruitments } = useGetInform({
+    pages: 1,
+    limit: 100,
+    search: debouncedJobSearch,
+  });
+
+  const createApplicationMutation = useCreateApplication({
+    config: {
+      onSuccess: () => {
+        notify({
+          type: "success",
+          message: "Candidate moved",
+          description: "Candidate has been assigned to the selected job posting.",
+        });
+        setShowAssignPanel(false);
+        setSelectedRecruitmentId("");
+        setAssigningNote("");
+        refetch();
+      },
+      onError: (error) => {
+        const err = error as {
+          response?: { data?: { message?: string | string[] } };
+          message?: string;
+        };
+
+        const raw = err?.response?.data?.message ?? err?.message ?? "Failed to assign candidate.";
+        const message = Array.isArray(raw) ? raw.join(", ") : raw;
+
+        notify({
+          type: "error",
+          message: "Assign failed",
+          description: message,
+        });
+      },
+    },
+  });
+
+  const recruitmentOptions = useMemo(() => {
+    const list = recruitmentRes?.data ?? [];
+    return list.filter((item) => item.is_active !== false);
+  }, [recruitmentRes]);
+
+  const recruitmentComboOptions = recruitmentOptions.map((item: IRecruitmentInfor) => {
+    return {
+      id: item.id,
+      name: item.post_title || item.internal_title || "Untitled posting",
+    };
+  });
+
+  const hasApplication = Boolean(latestApplication?.id);
 
   const currentStageIndex = useMemo(
     () => getApplicationStatusIndex(latestApplication?.status),
@@ -147,21 +237,16 @@ export default function CandidateDetail() {
 
   const openStatusModal = () => {
     if (!latestApplication?.id) return;
-    const defaultStatus =
-      currentStageIndex >= 0
-        ? APPLICATION_STATUS_STEPS[currentStageIndex].value
-        : APPLICATION_STATUS_STEPS[0].value;
-    setSelectedStatus(defaultStatus);
     setIsStatusModalOpen(true);
   };
 
-  const handleSubmitStatus = () => {
+  const handleSubmitStatus = async (newStatus: string) => {
     if (!latestApplication?.id) return;
     updateStatusMutation.mutate(
       {
         id: latestApplication.id,
         data: {
-          status: selectedStatus,
+          status: newStatus,
         },
       },
       {
@@ -171,6 +256,8 @@ export default function CandidateDetail() {
       },
     );
   };
+
+
 
   const potentialTypeOptions = useMemo(
     () => potentialTypeRes?.data ?? [],
@@ -206,6 +293,60 @@ export default function CandidateDetail() {
         },
       },
     );
+  };
+
+  const handleAssignCandidate = () => {
+    if (!candidateId || !selectedRecruitmentId) {
+      notify({
+        type: "warning",
+        message: "Job posting is required",
+        description: "Please select a job posting before assigning this candidate.",
+      });
+      return;
+    }
+
+    createApplicationMutation.mutate({
+      candidate_id: candidateId,
+      recruitment_infor_id: selectedRecruitmentId,
+      note: assigningNote.trim() || undefined,
+    });
+  };
+
+  const handleAvatarChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const allowedExt = ["jpg", "jpeg", "png", "webp"];
+    const maxSizeMb = 5;
+
+    if (!ext || !allowedExt.includes(ext)) {
+      notify({
+        type: "warning",
+        message: "Invalid file",
+        description: "Only .jpg, .jpeg, .png, .webp files are allowed.",
+      });
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      notify({
+        type: "warning",
+        message: "File too large",
+        description: `Maximum file size is ${maxSizeMb}MB.`,
+      });
+      event.target.value = "";
+      return;
+    }
+
+    uploadAvatarMutation.mutate({
+      candidateId,
+      file,
+      currentAvatarFile: candidate?.avatar_file ?? null,
+    });
+
+    event.target.value = "";
   };
 
   // main tabs
@@ -255,11 +396,20 @@ export default function CandidateDetail() {
                 overflowY="auto"
               >
                 <HStack spacing={3} align="flex-start">
-                  <Avatar
-                    bg="#334371"
-                    color="white"
-                    name={candidate.candidate_name ?? ""}
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    style={{ display: "none" }}
+                    onChange={handleAvatarChange}
                   />
+
+                 <Avatar
+                      bg="#334371"
+                      color="white"
+                      name={candidate.candidate_name ?? ""}
+                      src={avatarUrl}
+                    />
 
                   <Box minW={0} flex="1">
                     <HStack spacing={2}>
@@ -285,7 +435,7 @@ export default function CandidateDetail() {
                   />
                 </HStack>
 
-                <Divider my={4} />
+                <Divider my={3} />
 
                 {/* APPLICATION INFORMATION */}
                 <Text fontWeight="700" mb={2}>
@@ -326,38 +476,143 @@ export default function CandidateDetail() {
                           />
                         ))}
                       </HStack>
-                    </VStack>
+{!hasApplication && (
+  <Box pt={2} w="100%">
+    <Button
+      size="sm"
+      bg="#334371"
+      color="white"
+      borderRadius="full"
+      px={4}
+      fontWeight="600"
+      _hover={{ bg: "#2b3760" }}
+      _active={{ bg: "#253050" }}
+      onClick={() => setShowAssignPanel((prev) => !prev)}
+      isLoading={createApplicationMutation.isPending}
+    >
+      {showAssignPanel ? "Close Assign Panel" : "Assign to Job"}
+    </Button>
 
-                    <Flex alignItems={"center"} gap={1}>
-                      <Button
-                        size="sm"
-                        background={"#334371"}
-                        color={"white"}
-                        onClick={openStatusModal}
-                        isDisabled={!latestApplication?.id}
-                      >
-                        UPDATE
-                      </Button>
-                      <Menu placement="bottom-end">
-                        <MenuButton
-                          as={IconButton}
-                          icon={<BsThreeDotsVertical />}
-                          variant="ghost"
+    {showAssignPanel && (
+      <Box
+        mt={3}
+        w="100%"
+        p={4}
+        bg="gray.50"
+        border="1px solid"
+        borderColor="gray.200"
+        borderRadius="xl"
+        boxShadow="sm"
+      >
+        <VStack spacing={3} align="stretch">
+          <Box>
+            <Text fontSize="sm" fontWeight="600" color="gray.700" mb={1}>
+              Assign to job posting
+            </Text>
+            <Text fontSize="xs" color="gray.500">
+              Select a job posting to attach this candidate.
+            </Text>
+          </Box>
+
+          <Box>
+            <SearchCombobox
+              value={selectedRecruitmentId}
+              onChange={setSelectedRecruitmentId}
+              options={recruitmentComboOptions}
+              placeholder={
+                isLoadingRecruitments
+                  ? "Loading job postings..."
+                  : "Search and select job posting"
+              }
+              isDisabled={isLoadingRecruitments}
+              isClearable
+              zIndex={3000}
+            />
+          </Box>
+
+          <Input
+            size="sm"
+            placeholder="Optional note"
+            value={assigningNote}
+            onChange={(e) => setAssigningNote(e.target.value)}
+            bg="white"
+            borderColor="gray.200"
+            _hover={{ borderColor: "gray.300" }}
+            _focus={{
+              borderColor: "#334371",
+              boxShadow: "0 0 0 1px #334371",
+            }}
+          />
+
+          <HStack justify="flex-end" pt={1}>
+            <Button
+              size="sm"
+              variant="ghost"
+              color="gray.600"
+              onClick={() => {
+                setShowAssignPanel(false);
+                setSelectedRecruitmentId("");
+                setAssigningNote("");
+                setJobSearch("");
+              }}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              size="sm"
+              bg="#334371"
+              color="white"
+              px={4}
+              borderRadius="md"
+              _hover={{ bg: "#2b3760" }}
+              _active={{ bg: "#253050" }}
+              onClick={handleAssignCandidate}
+              isLoading={createApplicationMutation.isPending}
+              isDisabled={!selectedRecruitmentId}
+            >
+              Assign Candidate
+            </Button>
+          </HStack>
+        </VStack>
+      </Box>
+    )}
+  </Box>
+)}
+                          </VStack>
+
+                    {hasApplication && (
+                      <Flex alignItems={"center"} gap={1}>
+                        <Button
                           size="sm"
-                          aria-label="Options"
-                        />
+                          background={"#334371"}
+                          color={"white"}
+                          onClick={openStatusModal}
+                          isDisabled={!latestApplication?.id}
+                        >
+                          UPDATE
+                        </Button>
+                        <Menu placement="bottom-end">
+                          <MenuButton
+                            as={IconButton}
+                            icon={<BsThreeDotsVertical />}
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Options"
+                          />
 
-                        <MenuList w={"fit-content"} minW={"unset"}>
-                          {/* <MenuItem fontSize={"sm"}>
-                            Move to Another Job
-                          </MenuItem> */}
+                          <MenuList w={"fit-content"} minW={"unset"}>
+                            <MenuItem fontSize={"sm"} onClick={openTalentPoolModal}>
+                              Move to Talent Pool
+                            </MenuItem>
+                            <MenuItem color={'red'} fontSize={"sm"}>
+                              Reject Candidate
+                            </MenuItem>
 
-                          <MenuItem fontSize={"sm"} onClick={openTalentPoolModal}>
-                            Move to Talent Pool
-                          </MenuItem>
-                        </MenuList>
-                      </Menu>
-                    </Flex>
+                          </MenuList>
+                        </Menu>
+                      </Flex>
+                    )}
                   </HStack>
                 </Box>
 
@@ -486,8 +741,6 @@ export default function CandidateDetail() {
                   <Box
                     px={4}
                     pt={3}
-                    borderBottom="1px solid"
-                    borderColor="gray.200"
                   >
                     <TabList whiteSpace="nowrap">
                       <Tab fontSize={"14"} color={"#334371"} fontWeight={"700"}>
@@ -536,15 +789,15 @@ export default function CandidateDetail() {
                             onClick={pickFile}
                             leftIcon={<FiUploadCloud />}
                             size="sm"
-                            variant="outline"
+                            
                           >
                             UPLOAD CV
                           </Button>
                         </HStack>
 
-                        <TabPanels flex="1" overflow="auto">
+                        <TabPanels flex="1">
                           <TabPanel p={0}>
-                            <TabPanel p={0}>
+                            <TabPanel p={0} h={'Z'}>
                               <CandidateCvTab
                                 ref={cvTabRef}
                                 candidateId={candidateId}
@@ -590,64 +843,6 @@ export default function CandidateDetail() {
           )}
         </ModalBody>
       </ModalContent>
-
-      <Modal
-        isOpen={isStatusModalOpen}
-        onClose={() => setIsStatusModalOpen(false)}
-        isCentered
-        size="sm"
-      >
-        <ModalOverlay bg="blackAlpha.300" />
-        <ModalContent>
-          <ModalHeader textAlign="center">UPDATE STATUS</ModalHeader>
-          <ModalBody>
-            <RadioGroup value={selectedStatus} onChange={setSelectedStatus}>
-              <VStack align="stretch" spacing={3}>
-                {APPLICATION_STATUS_STEPS.map((step) => (
-                  <Radio
-                    key={step.value}
-                    value={step.value}
-                    sx={{
-                      ".chakra-radio__control": {
-                        borderColor: "gray.400", // default border
-                        _hover: { borderColor: "#334371" },
-                        _checked: {
-                          bg: "#334371",
-                          borderColor: "#334371", // checked border
-                        },
-                        _focusVisible: {
-                          boxShadow: "0 0 0 3px rgba(51, 67, 113, 0.25)",
-                        },
-                      },
-                    }}
-                  >
-                    {step.label}
-                  </Radio>
-                ))}
-              </VStack>
-            </RadioGroup>
-          </ModalBody>
-
-          <ModalFooter>
-            <HStack spacing={2}>
-              <Button
-                variant="ghost"
-                onClick={() => setIsStatusModalOpen(false)}
-              >
-                CANCEL
-              </Button>
-              <Button
-                background={"#334371"}
-                color={"white"}
-                onClick={handleSubmitStatus}
-                isLoading={updateStatusMutation.isPending}
-              >
-                SAVE
-              </Button>
-            </HStack>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
 
       <Modal
         isOpen={isTalentPoolModalOpen}
@@ -697,6 +892,14 @@ export default function CandidateDetail() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      <UpdateStatus
+        isOpen={isStatusModalOpen}
+        onClose={() => setIsStatusModalOpen(false)}
+        currentStatus={latestApplication?.status}
+        onUpdate={handleSubmitStatus}
+        isLoading={updateStatusMutation.isPending}
+      />
     </Modal>
   );
 }
