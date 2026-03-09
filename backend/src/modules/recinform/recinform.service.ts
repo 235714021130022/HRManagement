@@ -98,7 +98,8 @@ export class RecinformService {x
           },
         },
         recruitmentCosts: true,
-        positionPost: true
+        positionPost: true,
+        workLocation: {select: {id: true, full_name: true}},
       },
     });
     });
@@ -262,7 +263,8 @@ export class RecinformService {x
       include: {
         recruitmentPlans: { include: { recruitmentPlanChildBatches: true, recruitmentPlanChildPosteds: true } },
         recruitmentCosts: true,
-        positionPost: true
+        positionPost: true,
+        workLocation: {select: {id: true, full_name: true}},
       },
     });
   });

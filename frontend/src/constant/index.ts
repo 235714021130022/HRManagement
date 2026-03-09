@@ -107,3 +107,28 @@ export const CANDIDATE_STATUS_DISPLAY: Record<CandidateStatusType, string> = {
   [CandidateStatus.Active]: "Active",
   [CandidateStatus.Inactive]: "Inactive",
 };
+
+// ===============================
+// SCHEDULE TYPE
+// ===============================
+
+export const ScheduleType = {
+  InPersonInterview: "InPersonInterview", //Phỏng vấn trực tiếp
+  AssessmentTest: "AssessmentTest", //Bài kiểm tra đánh giá
+  ExternalOnlineInterview: "ExternalOnlineInterview", //Phỏng vấn trực tuyến qua nền tảng bên thứ ba (Zoom, Google Meet, Microsoft Teams, v.v.)
+  OnlineTest: "OnlineTest", //Bài kiểm tra trực tuyến trên hệ thống của công ty
+  InternshipEvaluation: "InternshipEvaluation", //Đánh giá thực tập
+  InternshipAcceptance: "InternshipAcceptance", // Tiếp nhận thử việc / thực tập
+} as const;
+
+export type ScheduleTypeKey = keyof typeof ScheduleType;
+export type ScheduleTypeType = (typeof ScheduleType)[ScheduleTypeKey];
+
+export const SCHEDULE_TYPE_DISPLAY: Record<ScheduleTypeType, string> = {
+  [ScheduleType.InPersonInterview]: "In-person Interview",
+  [ScheduleType.AssessmentTest]: "Assessment Test",
+  [ScheduleType.ExternalOnlineInterview]: "External Online Interview",
+  [ScheduleType.OnlineTest]: "Online Test",
+  [ScheduleType.InternshipEvaluation]: "Internship Evaluation",
+  [ScheduleType.InternshipAcceptance]: "Internship Acceptance",
+};

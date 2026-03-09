@@ -14,8 +14,6 @@ import { TrainlevModule } from './modules/setting/trainlev/trainlev.module';
 import { PotcanModule } from './modules/setting/potcan/potcan.module';
 import { SendEmailModule } from './modules/setting/send_email/send_email.module';
 import { CandidateModule } from './modules/candidate/candidate.module';
-import { TypeScheModule } from './modules/type_sche/type_sche.module';
-import { TypescheLinkModule } from './modules/typesche_link/typesche_link.module';
 import { InterviewScheModule } from './modules/interview_sche/interview_sche.module';
 import { JobModule } from './modules/job/job.module';
 import { SkillModule } from './modules/skill/skill.module';
@@ -39,8 +37,6 @@ import { AuditLogModule } from './modules/audit_log/audit_log.module';
     PotcanModule,
     SendEmailModule,
     CandidateModule,
-    TypeScheModule,
-    TypescheLinkModule,
     InterviewScheModule,
     JobModule,
     SkillModule,

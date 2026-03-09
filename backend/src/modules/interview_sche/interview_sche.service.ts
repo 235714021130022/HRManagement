@@ -118,7 +118,6 @@ async create(
         created_at: 'desc',
       },
       include: {
-        scheduleType: true,
             candidates: {
             include: {
                 candidate: true,
@@ -143,7 +142,6 @@ async create(
     return this.prisma.interview_Schedule.findUnique({
       where: { id },
       include: {
-        scheduleType: true,
         candidates: true,
       },
     });

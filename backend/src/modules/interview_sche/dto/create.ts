@@ -26,12 +26,12 @@ export class CreateInterviewScheduleDto {
 
   @IsOptional()
   @IsUUID()
-  type_schedule_id?: string;
-
+  type_schedule?: string;
+  
   @IsOptional()
-  @IsUUID()
-  evaluation_id?: string;
-
+  @IsString()
+  meeting_link?: string;
+  
   @IsOptional()
   @IsArray()
   @IsUUID('all', { each: true })

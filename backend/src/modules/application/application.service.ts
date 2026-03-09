@@ -145,6 +145,7 @@ export class ApplicationService {
                 name_post: true,
               },
             },
+            workLocation: true,
           },
         },
       },

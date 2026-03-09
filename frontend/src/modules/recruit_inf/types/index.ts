@@ -1,4 +1,5 @@
 import type { RecruitmentStatusType } from "../../../constant";
+import type { IInforCompany } from "../../inform_company/types";
 
 export interface IRecruitmentInfor {
   id: string;
@@ -26,7 +27,7 @@ export interface IRecruitmentInfor {
 
   // relations (optional)
   department?: any | null;
-  workLocation?: any | null;
+  workLocation?: IInforCompany | null;
   rank?: any | null;
   contactPerson?: any | null;
 

@@ -11,12 +11,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum GenderEmployee {
   Male
-  Female
+  Femail
 }
 //#region VAI TRO - MD
 model Role {
@@ -389,30 +389,6 @@ model CandidateReview {
   // @@unique([candidate_id, reviewer_id])
 }
 
-//#region LOAILICH - MD
-model Schedules_Type{
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  st_code String? @db.VarChar(50) @unique
-  type_name String? @db.VarChar(100)
-  description String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  interviewSchedules Interview_Schedule[]
-  typeSchedules_Links TypeSchedules_Link[]
-}
-
-//#region PHONGVAN TRUC TUYEN - MD
-model TypeSchedules_Link {
-  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  tl_code String? @db.VarChar(50) @unique
-  type_schedule_id String @db.Uuid
-  exam_link String? @db.Text
-  is_active Boolean @default(true)
-  created_at DateTime? @default(now()) @db.Timestamp(6)
-  updated_at DateTime? @default(now()) @db.Timestamp(6)
-  scheduleType Schedules_Type @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-}
 
 //#region LICH PHONG VAN - MD
 model Interview_Schedule {
@@ -423,9 +399,8 @@ model Interview_Schedule {
   interview_room String? @db.VarChar(100)
   time_duration Int @db.Integer // in minutes
   times DateTime? @db.Timestamp(6)
-  type_schedule_id String? @db.Uuid
-  evaluation_id String? @db.Uuid
-  scheduleType Schedules_Type? @relation(fields: [type_schedule_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  type_schedule String? @db.Uuid
+  meeting_link String? @db.Text
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
