@@ -31,6 +31,10 @@ export class CreateInterviewScheduleDto {
   @IsOptional()
   @IsString()
   meeting_link?: string;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
   
   @IsOptional()
   @IsArray()

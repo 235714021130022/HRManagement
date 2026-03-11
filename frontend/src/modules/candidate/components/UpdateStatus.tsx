@@ -11,8 +11,8 @@ import {
   HStack,
   Button,
 } from "@chakra-ui/react";
-import { APPLICATION_STATUS_STEPS } from "../api/update_status";
 import { useEffect, useState } from "react";
+import { APPLICATION_STATUS_STEPS } from "../../../constant";
 
 export type UpdateStatusProps = {
   isOpen: boolean;

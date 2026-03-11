@@ -11,6 +11,44 @@ import { generateCode } from 'src/common/utils/generate-code.util';
 export class InterviewScheService {
   constructor(private prisma: PrismaService) {}
 
+  private readonly candidateWithApplicationInclude = {
+    candidate: {
+      include: {
+        statusApplication: {
+          include: {
+            recruitment_infor: {
+              select: {
+                id: true,
+                post_title: true,
+                internal_title: true,
+                positionPost: {
+                  select: {
+                    id: true,
+                    name_post: true,
+                  },
+                },
+                department: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    acronym_name: true,
+                  },
+                },
+                workLocation: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    acronym_name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
 async create(
   data: CreateInterviewScheduleDto,
 ) {
@@ -67,7 +105,7 @@ async create(
     },
     include: {
       candidates: {
-        include: { candidate: true },
+        include: this.candidateWithApplicationInclude,
       },
     },
   });
@@ -119,9 +157,7 @@ async create(
       },
       include: {
             candidates: {
-            include: {
-                candidate: true,
-            },
+        include: this.candidateWithApplicationInclude,
             },
       },
     }),
@@ -142,7 +178,9 @@ async create(
     return this.prisma.interview_Schedule.findUnique({
       where: { id },
       include: {
-        candidates: true,
+        candidates: {
+          include: this.candidateWithApplicationInclude,
+        },
       },
     });
   }
@@ -190,7 +228,7 @@ async create(
   return tx.interview_Schedule.findUnique({
     where: { id },
     include: {
-      candidates: { include: { candidate: true } },
+      candidates: { include: this.candidateWithApplicationInclude },
     },
   });
 });

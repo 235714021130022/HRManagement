@@ -64,7 +64,7 @@ type InterviewScheduleFormValues = {
   interview_room: string;
   schedule_type: ScheduleTypeType | "";
   meeting_link: string;
-  note_for_candidate: string;
+  note: string;
   send_email_candidate: boolean;
 };
 
@@ -87,6 +87,36 @@ const labelProps = {
 };
 
 const safeString = (value?: string | null) => value ?? "";
+
+const normalizeTypeToken = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+const toScheduleTypeValue = (rawType?: string | null): ScheduleTypeType | "" => {
+  const raw = rawType?.trim();
+  if (!raw) {
+    return "";
+  }
+
+  const normalizedRaw = normalizeTypeToken(raw);
+
+  const enumMatch = (Object.values(ScheduleType) as ScheduleTypeType[]).find(
+    (type) => normalizeTypeToken(type) === normalizedRaw,
+  );
+
+  if (enumMatch) {
+    return enumMatch;
+  }
+
+  const displayMatch = (Object.entries(SCHEDULE_TYPE_DISPLAY) as Array<
+    [ScheduleTypeType, string]
+  >).find(([, label]) => normalizeTypeToken(label) === normalizedRaw);
+
+  if (displayMatch) {
+    return displayMatch[0];
+  }
+
+  return "";
+};
 
 export default function InterviewScheduleModal({
   isOpen,
@@ -123,7 +153,7 @@ export default function InterviewScheduleModal({
       interview_room: "",
       schedule_type: "",
       meeting_link: "",
-      note_for_candidate: "",
+      note: "",
       send_email_candidate: true,
     }),
     [],
@@ -252,6 +282,7 @@ export default function InterviewScheduleModal({
       interview_location: selectedWorkLocation || null,
       interview_room: values.interview_room.trim() || null,
       time_duration: Number(values.time_duration) || 0,
+      type_schedule: values.schedule_type || null,
       times:
         values.interview_date && values.start_time
           ? `${values.interview_date}T${values.start_time}:00`
@@ -259,6 +290,7 @@ export default function InterviewScheduleModal({
       meeting_link: isExternalOnlineInterview
         ? values.meeting_link.trim() || null
         : null,
+      note: values.note.trim() || null,
       candidate_ids: selectedCandidateIDs,
     };
 
@@ -326,9 +358,9 @@ export default function InterviewScheduleModal({
         time_duration: data.time_duration || 30,
         is_simultaneous: true,
         interview_room: safeString(data.interview_room),
-        schedule_type: "",
+        schedule_type: toScheduleTypeValue(data.type_schedule),
         meeting_link: safeString(data.meeting_link),
-        note_for_candidate: "",
+        note: safeString(data.note),
         send_email_candidate: true,
       });
 
@@ -579,7 +611,7 @@ export default function InterviewScheduleModal({
                       placeholder="Example: Candidate should bring a personal laptop or arrive 10 minutes early"
                       maxH="92px"
                       resize="vertical"
-                      {...register("note_for_candidate")}
+                      {...register("note")}
                       {...fieldProps}
                     />
                   </FormControl>

@@ -8,8 +8,10 @@ export interface CreateInterviewScheduleDto {
 	interview_location?: string | null;
 	interview_room?: string | null;
 	time_duration: number;
+	type_schedule?: string | null;
 	times?: string | null;
 	meeting_link?: string | null;
+	note?: string | null;
 	candidate_ids?: string[];
 }
 

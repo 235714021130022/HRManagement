@@ -189,3 +189,14 @@ export interface CandidateCreateModalProps {
   isSubmitting?: boolean;
 }
 
+
+export type UpdateApplicationStatusDTO = {
+  status: string;
+  note?: string;
+};
+
+export interface UpdateApplicationStatusResponse {
+  id: string;
+  status: string;
+  note?: string | null;
+}

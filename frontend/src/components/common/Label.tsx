@@ -4,10 +4,11 @@ import theme from '../../theme';
 interface LabelItemProps {
   label: string;
   required?: boolean;
+  fontSize?: number | string;
 }
-const LabelItem = React.memo(({ label, required = false }: LabelItemProps) => {
+const LabelItem = React.memo(({ label, required = false, fontSize = 13 }: LabelItemProps) => {
   return (
-    <Text fontWeight={500} color={theme.colors.primaryText} fontSize={13} mb={1}>
+    <Text fontWeight={500} color={theme.colors.primaryText} fontSize={fontSize} mb={1}>
       {label}{' '}
       {required && (
         <Text as="span" color="red.500">

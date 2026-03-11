@@ -24,6 +24,7 @@ export default function SearchCombobox({
   hasNextPage,
   zIndex = 2000,
   isClearable = true,
+  size = 'sm',
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -37,6 +38,7 @@ export default function SearchCombobox({
   hasNextPage?: boolean;
   zIndex?: any;
   isClearable?: boolean;
+  size?: 'sm' | 'md' | 'lg';
 }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -84,6 +86,7 @@ export default function SearchCombobox({
   };
 
   const showClearButton = value && !isDisabled && isClearable;
+  const textSize = size === 'md' || size === 'lg' ? 'md' : 'sm';
 
   return (
     <Box position="relative" ref={ref} zIndex={zIndex}>
@@ -91,13 +94,14 @@ export default function SearchCombobox({
         <Input
           isDisabled={isDisabled}
           placeholder={placeholder}
+          size={size}
           value={open ? search : selected?.name || (value ? 'Loading...' : '')}
           onChange={(e) => {
             setSearch(e.target.value);
             if (!open) setOpen(true);
           }}
           onClick={() => setOpen(true)}
-          fontSize="sm"
+          fontSize={textSize}
           autoComplete="off"
           fontWeight="semibold"
         />
@@ -146,7 +150,7 @@ export default function SearchCombobox({
                     key={a?.id}
                     px={3}
                     py={2}
-                    fontSize="sm"
+                    fontSize={textSize}
                     cursor="pointer"
                     _hover={{ bg: 'gray.100' }}
                     bg={a?.id === value ? 'blue.50' : 'white'}
@@ -167,7 +171,7 @@ export default function SearchCombobox({
                 )}
               </>
             ) : (
-              <ListItem px={3} py={2} color="gray.500" textAlign="center">
+              <ListItem px={3} py={2} color="gray.500" textAlign="center" fontSize={textSize}>
                 {isLoading ? 'Loading...' : 'No results'}
               </ListItem>
             )}

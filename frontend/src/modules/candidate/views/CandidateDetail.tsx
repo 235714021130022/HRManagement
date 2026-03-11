@@ -44,11 +44,7 @@ import { useupdateCandidate } from "../api/update";
 import { useUploadCandidateAvatar } from "../api/upload_avatar";
 import { useCreateApplication } from "../api/create_application";
 import { usePotentialTypes } from "../api/potential_type";
-import {
-  APPLICATION_STATUS_STEPS,
-  getApplicationStatusIndex,
-  useUpdateApplicationStatus,
-} from "../api/update_status";
+
 import { formatDateShort, formatMonth } from "../../../types";
 import InfoRow from "../components/InforRow";
 import CandidateAuditLog from "../components/CandidateAuditLog";
@@ -67,6 +63,9 @@ import { BASE_URL } from "../../../constant/config";
 
 import { useGetInform } from "../../recruit_inf/api/get";
 import type { IRecruitmentInfor } from "../../recruit_inf/types";
+import { useUpdateApplicationStatus } from "../api/update_status";
+import { getApplicationStatusIndex } from "../utils";
+import { APPLICATION_STATUS_STEPS } from "../../../constant";
 export default function CandidateDetail() {
   const notify = useNotify();
   const { id: paramId } = useParams();

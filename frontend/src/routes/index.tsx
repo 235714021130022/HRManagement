@@ -4,20 +4,24 @@ import {
   candidateDetailUrl,
   candidateUrl,
   companyRegisterUrl,
+  dashboardUrl,
   employeeDetailUrl,
   employeeUrl,
   error403Url,
   homeUrl,
   inforCompanyUrl,
   interviewScheUrl,
+  jobsDetailUrl,
   jobsUrl,
   layoutUrl,
   loginUrl,
   positionPostUrl,
+  potentialCandidateUrl,
   rankUrl,
   recruitmentInforDetailUrl,
   recruitmentInforUrl,
   sendEmailUrl,
+  settingUrl,
   skillsUrl
 } from "./urls";
 
@@ -40,11 +44,14 @@ import Error403 from "../components/error/403";
 import LoginView from "../modules/auth/view/LoginView";
 import EmployeeDetail from "../modules/employee/views/EmployeeDetail";
 import RecruitmentDetail from "../modules/recruit_inf/views/RecruitmentDetail";
-import CandidateModal from "../modules/candidate/components/CandidateModal";
 import CandidateDetailModal from "../modules/candidate/views/CandidateDetail";
+import JobDetail from "../modules/job/views/JobDetail";
+import Sibar_Report from "../modules/dashboard/views/Sibar_Report";
+import ReportSettings from "../modules/dashboard/components/ReportSettings";
+import General_Sibar from "../modules/setting/General_Sibar";
 
 export const createRouterConfig = () => {
-   const { Admin, Employee, Candidate, Employer } = RECRUIT_BASE_ROLE;
+  const { Admin, Employee, Employer } = RECRUIT_BASE_ROLE;
 
   return createBrowserRouter([
     {
@@ -67,6 +74,15 @@ export const createRouterConfig = () => {
              </ProtectedRoute>
           )
         },
+        {
+          path: dashboardUrl,
+          element: (
+              <ProtectedRoute allowedRoles={[Admin, Employee, Employer]}>
+              <Sibar_Report />
+             </ProtectedRoute>
+          )
+        },
+        
         {
           path: companyRegisterUrl,
           element: (
@@ -125,6 +141,14 @@ export const createRouterConfig = () => {
           )
         },
         {
+          path: potentialCandidateUrl,
+          element: (
+            <ProtectedRoute allowedRoles={[Admin, Employee]}>
+              <Candidates />
+            </ProtectedRoute>
+          )
+        },
+        {
           path: candidateDetailUrl,
           element: (
             <ProtectedRoute allowedRoles={[Admin, Employee]}>
@@ -145,6 +169,14 @@ export const createRouterConfig = () => {
           element: (
             <ProtectedRoute allowedRoles={[Admin, Employer]}>
               <Job />
+            </ProtectedRoute>
+          )
+        }, 
+        {
+          path: jobsDetailUrl,
+          element: (
+            <ProtectedRoute allowedRoles={[Admin, Employer]}>
+              <JobDetail />
             </ProtectedRoute>
           )
         },
@@ -179,7 +211,15 @@ export const createRouterConfig = () => {
               <Skill />
             </ProtectedRoute>
           )
-        }
+        }, 
+        {
+          path: settingUrl,
+          element: (
+            <ProtectedRoute allowedRoles={[Admin]}>
+              <General_Sibar />
+            </ProtectedRoute>
+          )
+        },
       ]
     },
     {

@@ -66,6 +66,11 @@ export class CreateRecruitmentInforDto {
   @IsNumber()
   salary_from?: number;
 
+
+  @Type(() => Number)
+  @IsNumber()
+  total_needed?: number;
+
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

@@ -11,7 +11,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum GenderEmployee {
@@ -140,7 +139,7 @@ model Recruitment_Infor {
 
   position_post_id String @db.Uuid
   positionPost Setting_Position_Posts @relation(fields: [position_post_id], references: [id], onDelete: Cascade, onUpdate: Cascade)
-
+  total_needed Int? @db.Integer
   recruitmentPlans Recruitment_Plan_Parent[]
   recruitmentCosts Recruitment_Costs[]
   statusApplication Application[]
@@ -399,8 +398,9 @@ model Interview_Schedule {
   interview_room String? @db.VarChar(100)
   time_duration Int @db.Integer // in minutes
   times DateTime? @db.Timestamp(6)
-  type_schedule String? @db.Uuid
+  type_schedule String? @db.Text
   meeting_link String? @db.Text
+  note String? @db.Text
   is_active Boolean @default(true)
   created_at DateTime? @default(now()) @db.Timestamp(6)
   updated_at DateTime? @default(now()) @db.Timestamp(6)
@@ -427,7 +427,7 @@ model Job {
   type_job String? @db.VarChar(100) // constant
   result_job String? @db.VarChar(100) // constant : FAIL; PASSED
   employee_id String? @db.Uuid // khoa ngoai - nguoi thuc hien
-  deadline DateTime? @db.Date
+  deadline DateTime? @db.Timestamp(6)
   remind_enabled Boolean? @default(false)
   remind_before_minutes Int? @db.Integer
   status String? @db.VarChar(50)

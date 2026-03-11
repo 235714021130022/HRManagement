@@ -5,7 +5,6 @@ import { useAuthStore } from '../../modules/auth/store/auth.store';
 import AppBreadcrumb from '../common/Breadcrumb';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import type { MenuMode } from '../../types';
 
 
 export default function MainLayout() {
@@ -21,7 +20,7 @@ export default function MainLayout() {
   );
 
   // state menu đang dùng
-  const [menuMode, setMenuMode] = useState<MenuMode>('main');
+  const [menuMode, setMenuMode] = useState('main');
 
   const toggleMenuMode = () => {
     if (!canUseAdminMenu) return;

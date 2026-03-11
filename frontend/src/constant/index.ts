@@ -132,3 +132,18 @@ export const SCHEDULE_TYPE_DISPLAY: Record<ScheduleTypeType, string> = {
   [ScheduleType.InternshipEvaluation]: "Internship Evaluation",
   [ScheduleType.InternshipAcceptance]: "Internship Acceptance",
 };
+
+
+// ===============================
+// STATUS CANDIDATE
+// ===============================
+
+export const APPLICATION_STATUS_STEPS = [
+  { value: "applied", label: "Applied" },
+  { value: "reviewing", label: "Reviewing" },
+  { value: "contacted", label: "Contacted" },
+  { value: "interviewing", label: "Interviewing" },
+  { value: "waiting_response", label: "Waiting Response" },
+  { value: "accepted", label: "Accepted" },
+  { value: "rejected", label: "Rejected" },
+] as const;

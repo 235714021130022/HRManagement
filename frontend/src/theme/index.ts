@@ -18,6 +18,9 @@ export const theme = extendTheme({
     ...colors.bgColors,
     ...colors.tableColors,
     ...colors.inputColors,
+    charts: {
+      ...colors.charts,
+    },
   },
 });
 export default theme;

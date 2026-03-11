@@ -15,6 +15,31 @@ export class JobService {
     private auditLogService: AuditLogService,
   ) {}
 
+  private readonly jobCandidateInclude = {
+    candidate: {
+      include: {
+        statusApplication: {
+          include: {
+            recruitment_infor: {
+              select: {
+                id: true,
+                post_title: true,
+                internal_title: true,
+                department: {
+                  select: {
+                    id: true,
+                    full_name: true,
+                    acronym_name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+
   private async logForCandidates(
     candidateIds: string[],
     action: string,
@@ -83,7 +108,7 @@ export class JobService {
       include: {
         employee: true,
         jobCandidates: {
-          include: { candidate: true },
+          include: this.jobCandidateInclude,
         },
       },
     });
@@ -140,7 +165,7 @@ export class JobService {
         include: {
           employee: true,
           jobCandidates: {
-            include: { candidate: true },
+            include: this.jobCandidateInclude,
           },
         },
       }),
@@ -162,7 +187,7 @@ export class JobService {
       include: {
         employee: true,
         jobCandidates: {
-          include: { candidate: true },
+          include: this.jobCandidateInclude,
         },
       },
     });
@@ -199,13 +224,6 @@ export class JobService {
     });
     beforeCandidateIds = beforeLinks.map((x) => x.candidate_id);
 
-  
-    if (typeof dataUpdate.is_active === 'boolean') {
-      dataUpdate.status = dataUpdate.is_active
-        ? 'completed'
-        : 'pending';
-    }
-
     // 🔥 Update job chính
     await tx.job.update({
       where: { id },
@@ -237,7 +255,7 @@ export class JobService {
       include: {
         employee: true,
         jobCandidates: {
-          include: { candidate: true },
+          include: this.jobCandidateInclude,
         },
       },
     });

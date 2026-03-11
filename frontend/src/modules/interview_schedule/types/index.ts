@@ -61,13 +61,100 @@ export interface IInterviewSchedule {
   interview_location?: string | null;
   interview_room?: string | null;
   meeting_link?: string | null;
+  note?: string | null;
   time_duration: number;
   times?: string | Date | null;
-  type_schedule_id?: string | null;
-  evaluation_id?: string | null;
+  type_schedule: string | null;
   is_active: boolean;
   created_at?: string | Date | null;
   updated_at?: string | Date | null;
+
+  // ===== optional nested data if backend trả kèm =====
+  candidates?: Array<{
+    id?: string;
+    candidate_id?: string;
+    candidate?: {
+      id?: string;
+      candidate_name?: string | null;
+      email?: string | null;
+      phone_number?: string | null;
+      avatar_file?: string | null;
+      statusApplication?: Array<{
+        id?: string;
+        recruitment_infor?: {
+          id?: string;
+          post_title?: string | null;
+          internal_title?: string | null;
+          positionPost?: {
+            id?: string;
+            name_post?: string | null;
+          } | null;
+          department?: {
+            id?: string;
+            full_name?: string | null;
+            acronym_name?: string | null;
+          } | null;
+          workLocation?: {
+            id?: string;
+            full_name?: string | null;
+            acronym_name?: string | null;
+          } | null;
+        } | null;
+      }>;
+    };
+  }>;
+
+  applications?: Array<{
+    id?: string;
+    candidate?: {
+      id?: string;
+      candidate_name?: string | null;
+      avatar_file?: string | null;
+    } | null;
+    recruitment_infor?: {
+      id?: string;
+      post_title?: string | null;
+      internal_title?: string | null;
+      positionPost?: {
+        id?: string;
+        name_post?: string | null;
+      } | null;
+      department?: {
+        id?: string;
+        full_name?: string | null;
+        acronym_name?: string | null;
+      } | null;
+      workLocation?: {
+        id?: string;
+        full_name?: string | null;
+        acronym_name?: string | null;
+      } | null;
+    } | null;
+  }>;
+
+  scheduleCandidates?: Array<{
+    id?: string;
+    candidate?: {
+      id?: string;
+      candidate_name?: string | null;
+      avatar_file?: string | null;
+      statusApplication?: Array<{
+        recruitment_infor?: {
+          id?: string;
+          post_title?: string | null;
+          internal_title?: string | null;
+          positionPost?: {
+            name_post?: string | null;
+          } | null;
+          department?: {
+            full_name?: string | null;
+            acronym_name?: string | null;
+          } | null;
+        } | null;
+      }>;
+    } | null;
+  }>;
+  
 }
 
 export interface IInterviewScheduleDetail extends IInterviewSchedule {

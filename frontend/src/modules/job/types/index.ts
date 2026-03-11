@@ -25,6 +25,23 @@ export interface IJobCandidates {
 	job_id: string;
 	candidate_id: string;
 	job?: IJob | null;
+	candidate?: {
+		id?: string;
+		candidate_name?: string | null;
+		statusApplication?: Array<{
+			id?: string;
+			recruitment_infor?: {
+				id?: string;
+				post_title?: string | null;
+				internal_title?: string | null;
+				department?: {
+					id?: string;
+					full_name?: string | null;
+					acronym_name?: string | null;
+				} | null;
+			} | null;
+		}>;
+	} | null;
 }
 
 export type IJobCandidate = IJobCandidates;

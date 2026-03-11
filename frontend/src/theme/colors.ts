@@ -26,4 +26,16 @@ export const colors = {
     colorCancel: '#e0e0e0',
     colorBorder: 'rgb(26, 41, 84)',
   },
-};
+  charts: {
+    PRIMARY : "#334371",
+    PRIMARY_900 : "#243055",
+    PRIMARY_700 : "#334371",
+    PRIMARY_600 : "#415382",
+    PRIMARY_500 : "#5A6C98",
+    PRIMARY_400 : "#7E8DB2",
+    PRIMARY_300 : "#A6B1CC",
+    PRIMARY_200 : "#D9DFEC",
+    BG_PAGE : "#F6F8FC",
+    BORDER : "#E3E8F2"
+  }
+} as const;

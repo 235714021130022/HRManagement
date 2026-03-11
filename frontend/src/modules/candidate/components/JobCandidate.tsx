@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import {
   Avatar,
   Box,
@@ -6,12 +6,10 @@ import {
   Flex,
   HStack,
   IconButton,
-  Spacer,
   Text,
   Tooltip,
 } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { BsThreeDotsVertical } from "react-icons/bs";
 import { FiCheckCircle } from "react-icons/fi";
 import { useNotify } from "../../../components/notification/NotifyProvider";
 import { useUpdateJob } from "../../job/api/update";
@@ -26,7 +24,13 @@ import { FaEdit, FaEye, FaTrash } from "react-icons/fa";
 
 type JobCandidateProps = {
   jobCandidates?: IJobCandidates[];
+  jobs?: IJob[];
   employeeId?: string;
+  toolbarRight?: ReactNode;
+  onAddClick?: () => void;
+  onViewClick?: (job: IJob) => void;
+  onEditClick?: (job: IJob) => void;
+  onDeleteClick?: (job: IJob) => void;
 };
 
 type JobFilterTab = "pending" | "completed";
@@ -83,7 +87,48 @@ const shouldHighlightOverdue = (job: IJob) => {
   return isDueTodayOrOverdue(job.deadline);
 };
 
-export default function JobCandidate({ jobCandidates = [], employeeId }: JobCandidateProps) {
+export const getJobCompanyName = (job: IJob) => {
+  const department = job.jobCandidates
+    ?.flatMap((jc) => jc.candidate?.statusApplication || [])
+    ?.find((app) => {
+      const dep = app.recruitment_infor?.department;
+      return !!(dep?.full_name || dep?.acronym_name);
+    })
+    ?.recruitment_infor?.department;
+
+  return department?.full_name || department?.acronym_name || "Unknown company";
+};
+
+const getCandidateSummary = (job: IJob) => {
+  const names = Array.from(
+    new Set(
+      (job.jobCandidates || [])
+        .map((jc) => jc.candidate?.candidate_name?.trim())
+        .filter((name): name is string => !!name),
+    ),
+  );
+
+  if (names.length === 0) {
+    return "No candidates";
+  }
+
+  if (names.length <= 2) {
+    return names.join(", ");
+  }
+
+  return `${names[0]}, ${names[1]} +${names.length - 2}`;
+};
+
+export default function JobCandidate({
+  jobCandidates = [],
+  jobs: directJobs,
+  employeeId,
+  toolbarRight,
+  onAddClick,
+  onViewClick,
+  onEditClick,
+  onDeleteClick,
+}: JobCandidateProps) {
   const notify = useNotify();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<JobFilterTab>("pending");
@@ -97,10 +142,22 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
   const updateJobMutation = useUpdateJob({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["candidate"] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
     },
   });
 
   const jobs = useMemo(() => {
+    if (directJobs?.length) {
+      if (!employeeId) {
+        return directJobs;
+      }
+
+      return directJobs.filter((job) => {
+        const assignedEmployeeId = job.employee_id || job.employee?.id;
+        return assignedEmployeeId === employeeId;
+      });
+    }
+
     const seen = new Set<string>();
     const rows: IJob[] = [];
 
@@ -119,7 +176,7 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
     }
 
     return rows;
-  }, [jobCandidates, employeeId]);
+  }, [jobCandidates, directJobs, employeeId]);
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
@@ -131,6 +188,7 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
   const columns: HeaderTable[] = [
     { name: "", key: "state", disableSort: true, headerStyle: { width: "56px" } },
     { name: "Job Name", key: "name_job" },
+    { name: "Candidates", key: "candidates", disableSort: true },
     { name: "Assignee", key: "assignee", disableSort: true },
     { name: "Deadline", key: "deadline" },
     { name: "Actions", key: "actions", disableSort: true, headerStyle: { width: "56px" } },
@@ -140,6 +198,7 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
     return filteredJobs.map((job) => ({
       ...job,
       state: "state",
+      candidates: "candidates",
       assignee: job.employee?.employee_name || "Unassigned",
       actions: "actions",
     }));
@@ -201,6 +260,13 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
         {row.name_job || "Untitled job"}
       </Text>
     ),
+    candidates: (_: any, row: IJob) => (
+      <Tooltip label={getCandidateSummary(row)} hasArrow>
+        <Text noOfLines={1} maxW="260px" fontWeight="500">
+          {getCandidateSummary(row)}
+        </Text>
+      </Tooltip>
+    ),
     assignee: (_: any, row: IJob) => {
       const assigneeName = row.employee?.employee_name || "Unassigned";
       return (
@@ -217,46 +283,74 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
         {formatDeadline(row.deadline)}
       </Text>
     ),
-    actions: () => (
-                <HStack spacing={0} justify="center">
-                  <Tooltip label="Edit" hasArrow>
-                    <IconButton
-                      aria-label="Edit candidate"
-                      icon={<FaEdit />}
-                      size="sm"
-                      variant="ghost"
-                      color="blue.600"
-                    //   onClick={(e) => {
-                    //     e.stopPropagation();
-                    //     setSelectedCandidate(row);
-                    //     setModalMode("edit");
-                    //     setModalOpen(true);
-                    //   }}
-                    />
-                  </Tooltip>
+    actions: (_: any, row: IJob) => (
+      <HStack spacing={0} justify="center">
+        <Tooltip label="View" hasArrow>
+          <IconButton
+            aria-label="View job"
+            icon={<FaEye />}
+            size="sm"
+            variant="ghost"
+            color="gray.700"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewClick?.(row);
+            }}
+          />
+        </Tooltip>
 
-                  <Tooltip label="Delete" hasArrow>
-                    <IconButton
-                      aria-label="Delete candidate"
-                      icon={<FaTrash />}
-                      size="sm"
-                      variant="ghost"
-                      color="red.600"
-                    //   onClick={(e) => {
-                    //     e.stopPropagation();
-                    //     setDeleteTarget(row);
-                    //     setDeleteOpen(true);
-                    //   }}
-                    />
-                  </Tooltip>
-                </HStack>
+        <Tooltip label="Edit" hasArrow>
+          <IconButton
+            aria-label="Edit job"
+            icon={<FaEdit />}
+            size="sm"
+            variant="ghost"
+            color="blue.600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditClick?.(row);
+            }}
+          />
+        </Tooltip>
+
+        <Tooltip label="Delete" hasArrow>
+          <IconButton
+            aria-label="Delete job"
+            icon={<FaTrash />}
+            size="sm"
+            variant="ghost"
+            color="red.600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteClick?.(row);
+            }}
+          />
+        </Tooltip>
+      </HStack>
     ),
   };
 
   return (
     <Box>
-      <Flex justify="space-between" align="center" mb={4}>
-        <HStack spacing={1}>
+      <Flex
+        justify="space-between"
+        align="center"
+        mb={4}
+        gap={3}
+        wrap={{ base: "wrap", lg: "nowrap" }}
+      >
+        <Button
+          size="sm"
+          background={theme.colors.primary}
+          color="white"
+          _hover={{ bg: theme.colors.primary }}
+          onClick={onAddClick}
+        >
+          ADD
+        </Button>
+
+        <HStack spacing={2} ml="auto" flexWrap="wrap" justify="flex-end">
+          <HStack spacing={1}>
           <Button
             size="sm"
             borderRadius="sm"
@@ -281,18 +375,9 @@ export default function JobCandidate({ jobCandidates = [], employeeId }: JobCand
           >
             COMPLETED
           </Button>
+          </HStack>
+          {toolbarRight ?? null}
         </HStack>
-
-        <Spacer />
-
-        <Button
-          size="sm"
-          background={theme.colors.primary}
-          color="white"
-          _hover={{ bg: theme.colors.primary }}
-        >
-          ADD
-        </Button>
       </Flex>
 
       <BaseTable
