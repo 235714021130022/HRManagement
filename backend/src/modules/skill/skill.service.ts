@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { Skill } from '@prisma/client';
+import { Prisma, Skill } from '@prisma/client';
 import { SkillFilterType } from './dto/filter_type';
 import { SkillPaginType } from './dto/pagin_type';
 import { CreateSkillDto } from './dto/create';
@@ -18,12 +18,26 @@ private async createRecursive(
   data: CreateSkillDto,
   parentId: string | null,
 ) {
-  const skill = await this.prisma.skill.create({
-    data: {
-      name: data.name,
-      parent_id: parentId,
-    },
-  });
+  const normalizedName = data.name?.trim();
+  if (!normalizedName) {
+    throw new HttpException('Skill name is required', HttpStatus.BAD_REQUEST);
+  }
+
+  let skill: Skill;
+  try {
+    skill = await this.prisma.skill.create({
+      data: {
+        name: normalizedName,
+        parent_id: parentId,
+        is_active: data.is_active ?? true,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new HttpException(`Skill \"${normalizedName}\" already exists`, HttpStatus.CONFLICT);
+    }
+    throw error;
+  }
 
   if (data.children && data.children.length > 0) {
     for (const child of data.children) {
@@ -58,6 +72,14 @@ private async createRecursive(
         where: whereCondition,
         skip,
         take: items_per_pages,
+        include: {
+          parent: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
         orderBy: { created_at: 'desc' },
       }),
       this.prisma.skill.count({ where: whereCondition }),
@@ -89,14 +111,42 @@ private async createRecursive(
     throw new HttpException('Skill không tồn tại', HttpStatus.BAD_REQUEST);
   }
 
-  const updatedSkill = await this.prisma.skill.update({
-    where: { id },
-    data: {
-      name: data.name,
-      parent_id: data.parent_id ?? skill.parent_id,
-      updated_at: new Date(),
-    },
-  });
+  if (data.parent_id === id) {
+    throw new HttpException('Skill cannot be its own parent', HttpStatus.BAD_REQUEST);
+  }
+
+  const dataUpdate: Prisma.SkillUncheckedUpdateInput = {
+    updated_at: new Date(),
+  };
+
+  if (typeof data.name === 'string') {
+    const normalizedName = data.name.trim();
+    if (!normalizedName) {
+      throw new HttpException('Skill name is required', HttpStatus.BAD_REQUEST);
+    }
+    dataUpdate.name = normalizedName;
+  }
+
+  if (typeof data.parent_id !== 'undefined') {
+    dataUpdate.parent_id = data.parent_id;
+  }
+
+  if (typeof data.is_active === 'boolean') {
+    dataUpdate.is_active = data.is_active;
+  }
+
+  let updatedSkill: Skill;
+  try {
+    updatedSkill = await this.prisma.skill.update({
+      where: { id },
+      data: dataUpdate,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new HttpException('Skill name already exists', HttpStatus.CONFLICT);
+    }
+    throw error;
+  }
 
   if (data.children && data.children.length > 0) {
     for (const child of data.children) {

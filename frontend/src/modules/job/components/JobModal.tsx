@@ -26,6 +26,7 @@ import { Controller, useForm } from "react-hook-form";
 import LabelItem from "../../../components/common/Label";
 import SearchCombobox from "../../../components/common/SearchCombobox";
 import { useNotify } from "../../../components/notification/NotifyProvider";
+import { JOB_STATUS, JOB_STATUS_VALUES, type JobStatusType } from "../../../constant";
 import theme from "../../../theme";
 import { useGetEmployee } from "../../employee/api/get_employee";
 import { useGetCandidate } from "../../candidate/api/get";
@@ -50,11 +51,11 @@ type JobFormValues = {
   deadline: string;
   remind_enabled: boolean;
   remind_before_minutes: number;
-  status: string;
+  status: JobStatusType;
 };
 
 const JOB_TYPE_OPTIONS = ["Send email", "Interview", "Follow-up", "Other"];
-const RESULT_OPTIONS = ["Not sent", "Sent", "In progress", "Completed"];
+const RESULT_OPTIONS = [...JOB_STATUS_VALUES];
 const REMIND_OPTIONS = [15, 30, 60, 120, 240];
 const LABEL_FONT_SIZE = "15px";
 const CONTROL_SIZE = "md";
@@ -81,6 +82,23 @@ const toIsoDateTime = (value?: string | null) => {
 };
 
 const safeString = (value?: string | null) => value ?? "";
+
+const normalizeJobStatus = (value?: string | null): JobStatusType => {
+  const normalized = safeString(value).trim().toLowerCase();
+
+  if (
+    [
+      "completed",
+      "done",
+      "closed",
+      "inactive",
+    ].includes(normalized)
+  ) {
+    return JOB_STATUS.COMPLETED;
+  }
+
+  return JOB_STATUS.IN_PROGRESS;
+};
 
 export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: JobModalProps) {
   const notify = useNotify();
@@ -109,7 +127,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
       deadline: "",
       remind_enabled: false,
       remind_before_minutes: 30,
-      status: "Active",
+      status: JOB_STATUS.IN_PROGRESS,
     }),
     [],
   );
@@ -175,12 +193,12 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
         name_job: safeString(data.name_job),
         description_job: safeString(data.description_job),
         type_job: safeString(data.type_job) || JOB_TYPE_OPTIONS[0],
-        result_job: safeString(data.result_job) || RESULT_OPTIONS[0],
+        result_job: normalizeJobStatus(data.result_job ?? data.status),
         employee_id: safeString(data.employee_id),
         deadline: toDatetimeLocalInput(data.deadline),
         remind_enabled: Boolean(data.remind_enabled),
         remind_before_minutes: Number(data.remind_before_minutes ?? 30),
-        status: safeString(data.status) || "Active",
+        status: normalizeJobStatus(data.result_job ?? data.status),
       });
 
       setSelectedCandidateIds(data.jobCandidates?.map((item) => item.candidate_id) ?? []);
@@ -200,16 +218,18 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
   const onSubmit = async (values: JobFormValues) => {
     setIsSubmittingForm(true);
 
+    const normalizedStatusFromResult = normalizeJobStatus(values.result_job);
+
     const payload: CreateJobDTO = {
       name_job: values.name_job.trim() || null,
       description_job: values.description_job.trim() || null,
       type_job: values.type_job.trim() || null,
-      result_job: values.result_job.trim() || null,
+      result_job: normalizedStatusFromResult,
       employee_id: values.employee_id,
       deadline: toIsoDateTime(values.deadline),
       remind_enabled: Boolean(values.remind_enabled),
       remind_before_minutes: values.remind_enabled ? Number(values.remind_before_minutes || 30) : null,
-      status: values.status.trim() || "Active",
+      status: normalizedStatusFromResult,
       candidate_ids: selectedCandidateIds,
     };
 
@@ -417,7 +437,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
               CANCEL
             </Button>
             <Button bg={theme.colors.primary} color={theme.colors.white} type="submit" isLoading={isSubmitting || isSubmittingForm} size={CONTROL_SIZE}>
-              ADD
+              {mode === "add" ? "ADD" : "UPDATE"}
             </Button>
           </ModalFooter>
         </form>

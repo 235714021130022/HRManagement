@@ -6,6 +6,7 @@ import { AuditLogService, type CandidateAuditActor } from '../audit_log/audit_lo
 import { CreateCandidateDto } from './dto/create';
 import { CandidateFilterType } from './dto/filter_type';
 import { CandidatePaginType } from './dto/pagin_type';
+import { PotentialCandidateFilterType } from './dto/potential_filter_type';
 import { UpdateCandidateDto } from './dto/update';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -140,14 +141,43 @@ export class CandidateService {
                 }
             },
             statusApplication: {
-                select: {
-                  id: true,
-                }
+              orderBy: { updated_at: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+                note: true,
+                created_at: true,
+                updated_at: true,
+                recruitment_infor_id: true,
+                recruitment_infor: {
+                  select: {
+                    id: true,
+                    recruitment_code: true,
+                    post_title: true,
+                    internal_title: true,
+                    positionPost: {
+                      select: {
+                        id: true,
+                        name_post: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
             jobCandidates: {
                 select: {
                     id: true,
                 }
+            },
+            reviewCandidate: {
+              where: { is_active: true },
+              select: {
+                id: true,
+                rating: true,
+                is_active: true,
+              },
             },
             potential: {
               select: {
@@ -157,6 +187,92 @@ export class CandidateService {
               }
             }
             }
+      }),
+      this.prisma.candidate.count({ where: whereCondition }),
+    ]);
+
+    return { data: candidates, current_pages: pages, items_per_pages, total_items };
+  }
+
+  async getPotentialCandidates(
+    filter: PotentialCandidateFilterType,
+  ): Promise<CandidatePaginType> {
+    const items_per_pages = Number(filter.items_per_pages) || 10;
+    const pages = Number(filter.pages) || 1;
+    const search = filter.search?.trim() || '';
+    const skip = pages > 1 ? (pages - 1) * items_per_pages : 0;
+
+    const whereCondition = {
+      is_active: true,
+      is_potential: true,
+      ...(filter.potential_type_id
+        ? {
+            potential_type_id: filter.potential_type_id,
+          }
+        : {}),
+      OR: [
+        { candidate_name: { contains: search, mode: 'insensitive' as const } },
+        { candidate_code: { contains: search, mode: 'insensitive' as const } },
+        { email: { contains: search, mode: 'insensitive' as const } },
+        { phone_number: { contains: search, mode: 'insensitive' as const } },
+      ],
+    };
+
+    const [candidates, total_items] = await Promise.all([
+      this.prisma.candidate.findMany({
+        take: items_per_pages,
+        skip,
+        where: whereCondition,
+        orderBy: { created_at: 'desc' },
+        include: {
+          candidateExperiences: {
+            where: {
+              is_active: true,
+            },
+          },
+          statusApplication: {
+            orderBy: { updated_at: 'desc' },
+            take: 1,
+            select: {
+              id: true,
+              status: true,
+              note: true,
+              created_at: true,
+              updated_at: true,
+              recruitment_infor_id: true,
+              recruitment_infor: {
+                select: {
+                  id: true,
+                  recruitment_code: true,
+                  post_title: true,
+                  internal_title: true,
+                  positionPost: {
+                    select: {
+                      id: true,
+                      name_post: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+          reviewCandidate: {
+            where: { is_active: true },
+            select: {
+              id: true,
+              rating: true,
+              is_active: true,
+            },
+          },
+          potential: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              is_active: true,
+            },
+          },
+        },
       }),
       this.prisma.candidate.count({ where: whereCondition }),
     ]);

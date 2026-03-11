@@ -11,6 +11,7 @@ import {
 } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FiCheckCircle } from "react-icons/fi";
+import { JOB_STATUS, type JobStatusType } from "../../../constant";
 import { useNotify } from "../../../components/notification/NotifyProvider";
 import { useUpdateJob } from "../../job/api/update";
 import type { IJob, IJobCandidates } from "../../job/types";
@@ -27,18 +28,20 @@ type JobCandidateProps = {
   jobs?: IJob[];
   employeeId?: string;
   toolbarRight?: ReactNode;
+  showCandidates?: boolean;
   onAddClick?: () => void;
   onViewClick?: (job: IJob) => void;
   onEditClick?: (job: IJob) => void;
   onDeleteClick?: (job: IJob) => void;
 };
 
-type JobFilterTab = "pending" | "completed";
+type JobFilterTab = "in_progress" | "completed";
 
-const isCompletedStatus = (status?: string | null, isActive?: boolean) => {
-  if (isActive === false) return true;
+const normalizeJobStatus = (status?: string | null, isActive?: boolean): JobStatusType => {
+  // Keep legacy compatibility for old DB values while enforcing canonical values in UI behavior.
+  if (isActive === false) return JOB_STATUS.COMPLETED;
   const normalized = (status || "").trim().toLowerCase();
-  if (!normalized) return false;
+  if (!normalized) return JOB_STATUS.IN_PROGRESS;
 
   const completedStatuses = [
     "completed",
@@ -49,7 +52,9 @@ const isCompletedStatus = (status?: string | null, isActive?: boolean) => {
     "passed",
   ];
 
-  return completedStatuses.includes(normalized);
+  return completedStatuses.includes(normalized)
+    ? JOB_STATUS.COMPLETED
+    : JOB_STATUS.IN_PROGRESS;
 };
 
 const formatDeadline = (value?: string | Date | null) => {
@@ -82,7 +87,7 @@ const isDueTodayOrOverdue = (value?: string | Date | null) => {
 };
 
 const shouldHighlightOverdue = (job: IJob) => {
-  const completed = isCompletedStatus(job.status, job.is_active);
+  const completed = normalizeJobStatus(job.status, job.is_active) === JOB_STATUS.COMPLETED;
   if (completed) return false;
   return isDueTodayOrOverdue(job.deadline);
 };
@@ -124,6 +129,7 @@ export default function JobCandidate({
   jobs: directJobs,
   employeeId,
   toolbarRight,
+  showCandidates = false,
   onAddClick,
   onViewClick,
   onEditClick,
@@ -131,7 +137,7 @@ export default function JobCandidate({
 }: JobCandidateProps) {
   const notify = useNotify();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<JobFilterTab>("pending");
+  const [activeTab, setActiveTab] = useState<JobFilterTab>("in_progress");
   const [updatingJobId, setUpdatingJobId] = useState<string | null>(null);
   const [tableState] = useState<Partial<BaseTableState>>({
     ...DefaultTableState,
@@ -180,15 +186,17 @@ export default function JobCandidate({
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
-      const completed = isCompletedStatus(job.status, job.is_active);
-      return activeTab === "completed" ? completed : !completed;
+      const normalizedStatus = normalizeJobStatus(job.status, job.is_active);
+      return activeTab === "completed"
+        ? normalizedStatus === JOB_STATUS.COMPLETED
+        : normalizedStatus === JOB_STATUS.IN_PROGRESS;
     });
   }, [jobs, activeTab]);
 
   const columns: HeaderTable[] = [
     { name: "", key: "state", disableSort: true, headerStyle: { width: "56px" } },
     { name: "Job Name", key: "name_job" },
-    { name: "Candidates", key: "candidates", disableSort: true },
+    ...(showCandidates ? [{ name: "Candidates", key: "candidates", disableSort: true } as HeaderTable] : []),
     { name: "Assignee", key: "assignee", disableSort: true },
     { name: "Deadline", key: "deadline" },
     { name: "Actions", key: "actions", disableSort: true, headerStyle: { width: "56px" } },
@@ -198,7 +206,7 @@ export default function JobCandidate({
     return filteredJobs.map((job) => ({
       ...job,
       state: "state",
-      candidates: "candidates",
+      ...(showCandidates ? { candidates: "candidates" } : {}),
       assignee: job.employee?.employee_name || "Unassigned",
       actions: "actions",
     }));
@@ -210,22 +218,23 @@ export default function JobCandidate({
         aria-label="Job state"
         icon={<FiCheckCircle />}
         variant="ghost"
-        color={isCompletedStatus(row.status, row.is_active) ? "green.500" : "gray.500"}
+        color={normalizeJobStatus(row.status, row.is_active) === JOB_STATUS.COMPLETED ? "green.500" : "gray.500"}
         size="sm"
         isLoading={updateJobMutation.isPending && updatingJobId === row.id}
         onClick={() => {
           if (!row.id || updateJobMutation.isPending) return;
 
-          const shouldMoveToPending = activeTab === "completed";
-          const nextStatusLabel = shouldMoveToPending ? "PENDING" : "COMPLETED";
-          const nextBackendStatus = shouldMoveToPending ? "Active" : "Inactive";
+          const shouldMoveToInProgress = activeTab === "completed";
+          const nextStatus = shouldMoveToInProgress
+            ? JOB_STATUS.IN_PROGRESS
+            : JOB_STATUS.COMPLETED;
 
           setUpdatingJobId(row.id);
           updateJobMutation.mutate(
             {
               id: row.id,
               data: {
-                status: nextBackendStatus,
+                status: nextStatus,
               },
             },
             {
@@ -233,7 +242,7 @@ export default function JobCandidate({
                 notify({
                   type: "success",
                   message: "Updated successfully",
-                  description: `Job \"${row.name_job || "Untitled job"}\" has been moved to ${nextStatusLabel}.`,
+                  description: `Job \"${row.name_job || "Untitled job"}\" has been moved to ${nextStatus.toUpperCase()}.`,
                 });
               },
               onError: () => {
@@ -354,14 +363,14 @@ export default function JobCandidate({
           <Button
             size="sm"
             borderRadius="sm"
-            variant={activeTab === "pending" ? "solid" : "outline"}
-            background={activeTab === "pending" ? theme.colors.primary : "white"}
-            color={activeTab === "pending" ? "white" : theme.colors.primary}
+            variant={activeTab === "in_progress" ? "solid" : "outline"}
+            background={activeTab === "in_progress" ? theme.colors.primary : "white"}
+            color={activeTab === "in_progress" ? "white" : theme.colors.primary}
             borderColor={theme.colors.primary}
-            _hover={{ bg: activeTab === "pending" ? theme.colors.primary : "gray.50" }}
-            onClick={() => setActiveTab("pending")}
+            _hover={{ bg: activeTab === "in_progress" ? theme.colors.primary : "gray.50" }}
+            onClick={() => setActiveTab("in_progress")}
           >
-            PENDING
+            IN PROGRESS
           </Button>
           <Button
             size="sm"

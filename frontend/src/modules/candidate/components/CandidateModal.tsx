@@ -25,6 +25,7 @@ import {
   Divider,
 } from "@chakra-ui/react";
 import { AddIcon, DeleteIcon } from "@chakra-ui/icons";
+import SearchCombobox from "../../../components/common/SearchCombobox";
 import { useUploadCandidateAvatar } from "../api/upload_avatar";
 import type {
   CandidateCreateForm,
@@ -76,7 +77,7 @@ const initialForm: CandidateCreateForm = {
 const inputSx = {
   h: "46px",
   borderRadius: "10px",
-  fontSize: "15px",
+  fontSize: "md",
   bg: "white",
 };
 
@@ -93,7 +94,8 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
   data,
   onSubmit,
   referrerOptions = [],
-  potentialTypeOptions: _potentialTypeOptions = [],
+  potentialTypeOptions = [],
+  forcePotential = false,
   isSubmitting = false,
 }) => {
   const notify = useNotify();
@@ -121,7 +123,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
         date_applied: data.date_applied ? new Date(data.date_applied).toISOString().slice(0, 10) : "",
         referrer_id: data.referrer_id || "",
         is_active: data.is_active,
-        is_potential: data.is_potential,
+        is_potential: forcePotential ? true : data.is_potential,
         potential_type_id: data.potential_type_id || "",
         status: (data.status as CandidateStatusType) || CandidateStatus.Active,
         cv_file: null,
@@ -142,8 +144,11 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
       return;
     }
 
-    setForm(initialForm);
-  }, [isOpen, mode, data]);
+    setForm({
+      ...initialForm,
+      is_potential: forcePotential,
+    });
+  }, [isOpen, mode, data, forcePotential]);
 
   const handleChange = (
     field: keyof Omit<CandidateCreateForm, "experiences" | "cv_file" | "avatar_file" | "avatar_preview" | "current_avatar_file">,
@@ -311,7 +316,10 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
   };
 
   const resetForm = () => {
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      is_potential: forcePotential,
+    });
   };
 
   const handleClose = () => {
@@ -345,6 +353,15 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
       return;
     }
 
+    if ((forcePotential || form.is_potential) && !form.potential_type_id) {
+      notify({
+        type: "warning",
+        message: "Missing potential type",
+        description: "Please select a potential type.",
+      });
+      return;
+    }
+
     const payload: CandidateCreatePayload = {
       candidate_name: form.candidate_name.trim(),
       date_of_birth: form.date_of_birth || null,
@@ -358,8 +375,8 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
       date_applied: form.date_applied || null,
       referrer_id: form.referrer_id || null,
       is_active: form.is_active,
-      is_potential: form.is_potential,
-      potential_type_id: form.is_potential ? form.potential_type_id || null : null,
+      is_potential: forcePotential ? true : form.is_potential,
+      potential_type_id: (forcePotential || form.is_potential) ? form.potential_type_id || null : null,
       status: form.status || CandidateStatus.Active,
       cv_file: form.cv_file,
       avatar_file: form.avatar_file,
@@ -430,7 +447,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                 Drag and drop or click here to upload CV
               </Text>
 
-              <Text mt={2} color="gray.500" fontSize="15px">
+              <Text mt={2} color="gray.500" fontSize="md">
                 Accepts .doc, .docx, .pdf files (Max size &lt; 15MB)
               </Text>
 
@@ -459,7 +476,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                     color="gray.400"
                   />
                 </Box>
-                <Text mt={2} fontSize="11px" color="gray.500" textAlign="center">
+                <Text mt={2} fontSize="sm" color="gray.500" textAlign="center">
                   {avatarFileName ? "Avatar selected" : "Click avatar to upload"}
                 </Text>
               </Box>
@@ -468,7 +485,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                 <Grid templateColumns="repeat(2, 1fr)" gap={4}>
                   <GridItem colSpan={2}>
                     <FormControl isRequired>
-                      <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                      <FormLabel mb={2} fontWeight="700" fontSize="md">
                         Full Name
                       </FormLabel>
                       <Input
@@ -481,7 +498,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </GridItem>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       Date of Birth
                     </FormLabel>
                     <Input
@@ -493,7 +510,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       Gender
                     </FormLabel>
                     <Select
@@ -510,7 +527,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
 
                   <GridItem colSpan={2}>
                     <FormControl>
-                      <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                      <FormLabel mb={2} fontWeight="700" fontSize="md">
                         Country
                       </FormLabel>
                       <Input
@@ -523,7 +540,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </GridItem>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       Province/City
                     </FormLabel>
                     <Input
@@ -535,7 +552,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       District
                     </FormLabel>
                     <Input
@@ -547,7 +564,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       Phone Number
                     </FormLabel>
                     <Input
@@ -559,7 +576,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   </FormControl>
 
                   <FormControl>
-                    <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                    <FormLabel mb={2} fontWeight="700" fontSize="md">
                       Email
                     </FormLabel>
                     <Input
@@ -572,7 +589,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
 
                   <GridItem colSpan={2}>
                     <FormControl>
-                      <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                      <FormLabel mb={2} fontWeight="700" fontSize="md">
                         Address
                       </FormLabel>
                       <Input
@@ -584,7 +601,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                     </FormControl>
                   </GridItem>
                 <FormControl>
-                  <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                  <FormLabel mb={2} fontWeight="700" fontSize="md">
                     Applied Date
                   </FormLabel>
                   <Input
@@ -595,7 +612,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                   />
                 </FormControl>
                 <FormControl>
-                  <FormLabel mb={2} fontWeight="700" fontSize="15px">
+                  <FormLabel mb={2} fontWeight="700" fontSize="md">
                     Referrer
                   </FormLabel>
                   <Select
@@ -611,6 +628,28 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
                     ))}
                   </Select>
                 </FormControl>
+
+                {(forcePotential || form.is_potential) && (
+                  <GridItem colSpan={2}>
+                    <FormControl isRequired>
+                      <FormLabel mb={2} fontWeight="700" fontSize="md">
+                        Potential Type
+                      </FormLabel>
+                      <SearchCombobox
+                        value={form.potential_type_id}
+                        onChange={(v) => handleChange("potential_type_id", v)}
+                        options={potentialTypeOptions.map((item) => ({
+                          id: item.value,
+                          name: item.label,
+                        }))}
+                        placeholder="Search and select potential type"
+                        isClearable
+                        size="md"
+                        zIndex={4000}
+                      />
+                    </FormControl>
+                  </GridItem>
+                )}
 
                 </Grid>
                 <Divider mt={7}/>
@@ -632,7 +671,7 @@ const CandidateCreateModal: React.FC<CandidateCreateModalProps> = ({
 
               <VStack spacing={4} align="stretch">
                 {form.experiences.length === 0 ? (
-                  <Text fontSize="14px" color="gray.500" mt={3}>
+                  <Text fontSize="md" color="gray.500" mt={3}>
                     No experience added yet.
                   </Text>
                 ) : (

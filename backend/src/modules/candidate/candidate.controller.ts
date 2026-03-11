@@ -18,6 +18,7 @@ import { Candidate } from '@prisma/client';
 import { CandidateService } from './candidate.service';
 import { CreateCandidateDto } from './dto/create';
 import { CandidateFilterType } from './dto/filter_type';
+import { PotentialCandidateFilterType } from './dto/potential_filter_type';
 import { CandidatePaginType } from './dto/pagin_type';
 import { UpdateCandidateDto } from './dto/update';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -99,6 +100,13 @@ export class CandidateController {
   @Get()
   getAll(@Query() filter: CandidateFilterType): Promise<CandidatePaginType> {
     return this.candidateService.getAll(filter);
+  }
+
+  @Get('potential')
+  getPotentialCandidates(
+    @Query() filter: PotentialCandidateFilterType,
+  ): Promise<CandidatePaginType> {
+    return this.candidateService.getPotentialCandidates(filter);
   }
 
   @Get(':id')

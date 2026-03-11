@@ -6,6 +6,7 @@ import {
   Box,
   Flex,
   HStack,
+  Icon,
   IconButton,
   Input,
   InputGroup,
@@ -17,7 +18,7 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { SearchIcon } from "@chakra-ui/icons";
-import { FaEdit, FaEye, FaTrash } from "react-icons/fa";
+import { FaEdit, FaEye, FaRegStar, FaStar, FaStarHalfAlt, FaTrash } from "react-icons/fa";
 
 import BaseTable, {
   DefaultTableState,
@@ -35,7 +36,16 @@ import { useupdateCandidate } from "../api/update";
 import { useUploadCandidateCv } from "../api/upload_cv";
 import { useUploadCandidateAvatar } from "../api/upload_avatar";
 import type { CandidateCreatePayload, ICandidate } from "../types";
-import { CANDIDATE_STATUS_DISPLAY, CandidateStatus, type CandidateStatusType } from "../../../constant";
+import { formatDateShort } from "../../../types";
+import {
+  getApplicationStatusBadgeStyle,
+  getApplicationStatusLabel,
+  getCandidateAppliedDate,
+  getCandidateAverageRating,
+  getCandidateRecruitmentPosition,
+  getCandidateRecruitmentPost,
+  getLatestCandidateApplication,
+} from "../utils";
 import CandidateCreateModal from "../components/CandidateModal";
 
 const CANDIDATE_STATUS_FILTER = {
@@ -43,6 +53,23 @@ const CANDIDATE_STATUS_FILTER = {
   Active: "Active",
   Inactive: "Inactive",
 } as const;
+
+const RatingStars = ({ value }: { value: number }) => {
+  const normalized = Math.max(0, Math.min(5, Math.round(value * 2) / 2));
+
+  return (
+    <HStack spacing={0.5}>
+      {Array.from({ length: 5 }, (_, idx) => {
+        const starIndex = idx + 1;
+        const full = normalized >= starIndex;
+        const half = normalized >= starIndex - 0.5 && normalized < starIndex;
+        const icon = full ? FaStar : half ? FaStarHalfAlt : FaRegStar;
+
+        return <Icon key={starIndex} as={icon} boxSize="12px" color="yellow.400" />;
+      })}
+    </HStack>
+  );
+};
 
 export function Candidates() {
   const notify = useNotify();
@@ -108,12 +135,15 @@ export function Candidates() {
     setPage(1);
   }, [statusFilter, debouncedSearch]);
 
-    const columns: HeaderTable[] = [
+  const columns: HeaderTable[] = [
     { name: "Candidate", key: "candidate_name" },
     { name: "Contact", key: "contact", disableSort: true },
-    { name: "Applied", key: "date_applied" },
-    { name: "Status", key: "status" },
-    ];
+    { name: "Recruitment Position", key: "recruitment_position", disableSort: true },
+    { name: "Job Post", key: "recruitment_post", disableSort: true },
+    { name: "Applied Date", key: "date_applied", disableSort: true },
+    { name: "Rating", key: "rating", disableSort: true },
+    { name: "Status", key: "status", disableSort: true },
+  ];
 
   const mappedItems = useMemo(() => {
     return items?.map((i) => ({ ...i })) ?? [];
@@ -141,23 +171,47 @@ export function Candidates() {
     </Box>
   );
 }, 
-status: (_: any, row: ICandidate & { id: string }) => {
-      const active = row.status === CandidateStatus.Active;
+    recruitment_position: (_: any, row: ICandidate) => (
+      <Text fontSize="sm">{getCandidateRecruitmentPosition(row)}</Text>
+    ),
+    recruitment_post: (_: any, row: ICandidate) => (
+      <Text fontSize="sm">{getCandidateRecruitmentPost(row)}</Text>
+    ),
+    date_applied: (_: any, row: ICandidate) => (
+      <Text fontSize="sm">{formatDateShort(getCandidateAppliedDate(row))}</Text>
+    ),
+    rating: (_: any, row: ICandidate) => {
+      const { average, count } = getCandidateAverageRating(row);
+      if (!count) return <Text fontSize="sm" color="gray.500">-</Text>;
+
+      return (
+        <Box>
+          <HStack justify="center" spacing={1}>
+            <RatingStars value={average} />
+          </HStack>
+        </Box>
+      );
+    },
+    status: (_: any, row: ICandidate & { id: string }) => {
+      const latestApplication = getLatestCandidateApplication(row);
+      const status = latestApplication?.status;
+      const statusLabel = getApplicationStatusLabel(status);
+      const badgeStyle = getApplicationStatusBadgeStyle(status);
       return (
         <Badge
-          borderRadius="lg"
+          borderRadius="full"
           px={3}
           py={1}
+          borderWidth="1px"
+          borderStyle="solid"
+          bg={badgeStyle.bg}
+          color={badgeStyle.color}
           fontSize="xs"
           fontWeight="700"
+          letterSpacing="0.4px"
           textTransform="uppercase"
-          color={active ? "green.700" : "gray.600"}
-          borderColor={active ? "green.300" : "gray.300"}
-          bg={active ? "green.100" : "gray.100"}
         >
-          {CANDIDATE_STATUS_DISPLAY[row.status as CandidateStatusType] ??
-            row.status ??
-            "N/A"}
+          {statusLabel === "-" ? "-" : statusLabel.toUpperCase()}
         </Badge>
       );
     },

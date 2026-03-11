@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsArray, IsBoolean, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 
 export class UpdateSkillDto {
   @IsOptional()
@@ -19,4 +19,8 @@ export class UpdateSkillDto {
   @ValidateNested({ each: true })
   @Type(() => UpdateSkillDto)
   children?: UpdateSkillDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

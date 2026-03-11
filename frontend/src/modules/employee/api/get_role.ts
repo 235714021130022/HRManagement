@@ -27,7 +27,10 @@ export type GetRoleResponse = {
 export const getAllRole = async (params: GetRoleParams): Promise<GetRoleResponse> => {
   const res = await apiClient.get(URL_API_ROLE, { params });
 
-  const raw = res.data?.data ?? res.data;
+  const raw =
+    res.data?.data && !Array.isArray(res.data.data)
+      ? res.data.data
+      : res.data;
 
   // list: backend có thể trả { data: [...] } hoặc trả thẳng [...]
   const list: IRole[] =

@@ -3,8 +3,10 @@ import {
   IsString,
   IsUUID,
   IsBoolean,
-  MaxLength
+  MaxLength,
+  IsIn,
 } from 'class-validator';
+import { RANK_STATUS_VALUES } from 'src/constant';
 
 export class CreateRankDTO {
 
@@ -24,6 +26,7 @@ export class CreateRankDTO {
 
   @IsOptional()
   @IsString()
+  @IsIn(RANK_STATUS_VALUES)
   @MaxLength(50)
   status?: string;
 

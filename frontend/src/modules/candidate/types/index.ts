@@ -37,11 +37,18 @@ export interface ICandidate {
   // ===== Relations =====
   recruitment_infor?: IRecruitmentInfor | null;
   referrer?: IEmployee | null;
-  status: string
+  potential?: {
+    id: string;
+    name: string;
+    description?: string | null;
+    is_active?: boolean;
+  } | null;
+  status?: string | null;
 //   potential?: ISettingPotentialType | null;
 
   candidateExperiences?: ICandidateExperience[];
   statusApplication?: IApplycation[];
+  reviewCandidate?: ICandidateReview[];
 //   schedules?: ISchedulesCandidates[];
   jobCandidates?: IJobCandidates[];
 //   candidateSkill?: ICandidateSkill[];
@@ -65,12 +72,23 @@ export interface ICandidateExperience {
 export interface IApplycation {
   id: string;
 
-  candidate_id: string;
-  recruitment_infor_id: string;
+  candidate_id?: string;
+  recruitment_infor_id?: string;
   
   status: string;
   note?: string | null;
-  recruitment_infor?: Pick<IRecruitmentInfor, 'id' | 'post_title' | 'internal_title'> | null;
+  created_at?: string | Date | null;
+  updated_at?: string | Date | null;
+  recruitment_infor?: {
+    id: string;
+    recruitment_code?: string | null;
+    post_title?: string | null;
+    internal_title?: string | null;
+    positionPost?: {
+      id: string;
+      name_post?: string | null;
+    } | null;
+  } | null;
 }
 
 export interface ICandidateReview {
@@ -186,6 +204,7 @@ export interface CandidateCreateModalProps {
   onSubmit: (payload: CandidateCreatePayload) => Promise<void> | void;
   referrerOptions?: OptionType[];
   potentialTypeOptions?: OptionType[];
+  forcePotential?: boolean;
   isSubmitting?: boolean;
 }
 

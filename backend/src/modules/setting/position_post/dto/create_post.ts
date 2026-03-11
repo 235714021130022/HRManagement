@@ -3,8 +3,10 @@ import {
   IsString, 
   IsUUID, 
   IsBoolean, 
-  MaxLength 
+  MaxLength,
+  IsIn,
 } from "class-validator";
+import { POSITION_POST_STATUS_VALUES } from "src/constant";
 
 export class CreatePositionPostDTO {
 
@@ -52,6 +54,7 @@ export class CreatePositionPostDTO {
 
   @IsOptional()
   @IsString()
+  @IsIn(POSITION_POST_STATUS_VALUES)
   @MaxLength(50)
   status?: string;
 

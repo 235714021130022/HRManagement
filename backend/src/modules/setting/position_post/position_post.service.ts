@@ -2,40 +2,58 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreatePositionPostDTO } from './dto/create_post';
 import { generateCode } from 'src/common/utils/generate-code.util';
-import { connect } from 'http2';
 import { UpdatePostDTO } from './dto/update_post';
 import { PostFilterType } from './dto/filter_type';
 import { PostPaginType } from './dto/pagin_type';
-import { Setting_Position_Posts } from '@prisma/client';
+import { Prisma, Setting_Position_Posts } from '@prisma/client';
+import { POSITION_POST_STATUS } from 'src/constant';
 
 @Injectable()
 export class PositionPostService {
     constructor (private prismaService: PrismaService){}
-    async create (data: CreatePositionPostDTO){
-        const { Setting_Process_Recruitment_id, unit_id,position_code , ...rest} = data;
 
+    private async generateNextPositionCode(): Promise<string> {
+        // Use code ordering (not created_at) so imports/manual edits don't break sequence.
         const lastPP = await this.prismaService.setting_Position_Posts.findFirst({
-            where: { position_code: {not: null, startsWith: 'PP'}},
-            orderBy: { created_at: 'desc'},
-            select: {position_code: true}
-        })
+            where: { position_code: { not: null, startsWith: 'PP_' } },
+            orderBy: { position_code: 'desc' },
+            select: { position_code: true },
+        });
 
         let nextNumber = 1;
         const last = lastPP?.position_code;
-        if (last){
+        if (last) {
             const m = last.match(/^PP_(\d+)$/);
-            if(m) nextNumber = Number(m[1]) + 1;
+            if (m) nextNumber = Number(m[1]) + 1;
         }
-        const ppCode = generateCode('PP', nextNumber);
-        return this.prismaService.setting_Position_Posts.create({
-            data: {
-                ...rest,
-                position_code: ppCode,
-                ... (Setting_Process_Recruitment_id ? { processRecruitment: {connect: { id: Setting_Process_Recruitment_id}}} : {}),
-                ... (unit_id ? {inforCompany: {connect: {id: unit_id}}}: {}),
-        
+
+        return generateCode('PP', nextNumber);
+    }
+
+    async create (data: CreatePositionPostDTO){
+        const { Setting_Process_Recruitment_id, unit_id, position_code, ...rest } = data;
+
+        // Retry a few times to handle concurrent creates racing on the same generated code.
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const ppCode = await this.generateNextPositionCode();
+            try {
+                return await this.prismaService.setting_Position_Posts.create({
+                    data: {
+                        ...rest,
+                        position_code: ppCode,
+                        ...(Setting_Process_Recruitment_id ? { processRecruitment: { connect: { id: Setting_Process_Recruitment_id } } } : {}),
+                        ...(unit_id ? { inforCompany: { connect: { id: unit_id } } } : {}),
+                    },
+                });
+            } catch (error) {
+                if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+                    continue;
+                }
+                throw error;
             }
-        })
+        }
+
+        throw new HttpException('Could not generate a unique position code. Please try again.', HttpStatus.CONFLICT);
     }
     async getAll (filter: PostFilterType): Promise<PostPaginType>{
         const items_per_pages = Number(filter.items_per_pages) || 10;
@@ -53,7 +71,7 @@ export class PositionPostService {
                     { position_code: {contains: search, mode: 'insensitive'}}
                 ],
                 AND: [
-                    { status: {not: 'Ngừng sử dụng'}}
+                    { status: { not: POSITION_POST_STATUS.INACTIVE } }
                 ]
             },
             orderBy: {created_at: 'desc'}
@@ -66,7 +84,7 @@ export class PositionPostService {
                     {position_code: {contains: search, mode: 'insensitive'}}
                 ],
                 AND: [
-                    {status: {not: 'Ngừng sử dụng'}}
+                    { status: { not: POSITION_POST_STATUS.INACTIVE } }
                 ]
             }
         })
@@ -93,11 +111,13 @@ export class PositionPostService {
         }
         const dataUpdate = { ... data};
         if(typeof dataUpdate.status === 'string'){
-            if(dataUpdate.status === 'Ngừng sử dụng') dataUpdate.is_active = false;
-            if(dataUpdate.status === 'Đang sử dụng') dataUpdate.is_active = true
+            if(dataUpdate.status === POSITION_POST_STATUS.INACTIVE) dataUpdate.is_active = false;
+            if(dataUpdate.status === POSITION_POST_STATUS.ACTIVE) dataUpdate.is_active = true
         }
         if(typeof dataUpdate.is_active === 'boolean'){
-            dataUpdate.status = dataUpdate.is_active ? 'Đang sử dụng' : 'Ngừng sử dụng'
+            dataUpdate.status = dataUpdate.is_active
+                ? POSITION_POST_STATUS.ACTIVE
+                : POSITION_POST_STATUS.INACTIVE;
         }
         return this.prismaService.setting_Position_Posts.update({
             where: {id},
@@ -107,7 +127,7 @@ export class PositionPostService {
     async delete (id: string): Promise<Setting_Position_Posts>{
         return this.prismaService.setting_Position_Posts.update({
             where: {id},
-            data: {status: 'Ngừng sử dụng', is_active: false}
+            data: { status: POSITION_POST_STATUS.INACTIVE, is_active: false }
         })
     }
 }

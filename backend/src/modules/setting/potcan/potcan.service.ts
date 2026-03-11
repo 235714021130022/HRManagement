@@ -38,7 +38,10 @@ export class PotcanService {
                     }
                 ]
             },
-            orderBy: { id: 'desc' }
+            orderBy: [
+                { created_at: 'desc' },
+                { id: 'desc' },
+            ]
         })
 
         const total_items = await this.prismaService.setting_Potential_Type.count({

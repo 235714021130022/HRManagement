@@ -1,10 +1,12 @@
 import { useMutation, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import { URL_API_JOBS } from "../../../constant/config";
+import type { JobStatusType } from "../../../constant";
 import apiClient from "../../../lib/api";
 import type { IJobData } from "./get";
 
 export type JobUpdateDTO = Partial<IJobData> & {
 	candidate_ids?: string[];
+	status?: JobStatusType;
 };
 
 type UpdateJobResponse = IJobData;

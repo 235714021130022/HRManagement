@@ -38,7 +38,10 @@ export const getAllJob = async (params: GetJobParams): Promise<GetJobResponse> =
 		},
 	});
 
-	const raw = res.data?.data ?? res.data;
+	const raw =
+		res.data?.data && !Array.isArray(res.data.data)
+			? res.data.data
+			: res.data;
 	const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
 
 	const totalItems = raw?.total_items ?? list.length ?? 0;

@@ -1,4 +1,5 @@
 import type { IEmployee } from "../../employee/types";
+import type { JobStatusType } from "../../../constant";
 
 export interface IJob {
 	id: string;
@@ -11,7 +12,7 @@ export interface IJob {
 	deadline?: string | Date | null;
 	remind_enabled?: boolean | null;
 	remind_before_minutes?: number | null;
-	status?: string | null;
+	status?: JobStatusType | string | null;
 	is_active?: boolean;
 	created_at?: string | Date | null;
 	updated_at?: string | Date | null;

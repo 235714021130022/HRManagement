@@ -128,6 +128,7 @@ export function Job() {
         <Box>
             <JobCandidate
                 jobs={filteredJobs}
+                showCandidates
                 onAddClick={openAddModal}
                 onViewClick={goToDetail}
                 onEditClick={openEditModal}

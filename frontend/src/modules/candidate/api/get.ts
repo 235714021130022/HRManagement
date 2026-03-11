@@ -28,12 +28,15 @@ export const getAllCandidate = async (
     params: GetCandidateParams
 ): Promise<GetCandidateResponse> => {
     const res = await apiClient.get(URL_API_CANDIDATE, {params});
-    const raw = res.data?.data ?? res.data;
+        const raw =
+            res.data?.data && !Array.isArray(res.data.data)
+                ? res.data.data
+                : res.data;
 
     const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
 
     const totalItems = raw?.total_items ?? list.length ?? 0;
-    const currentPage = raw?.current_page ?? params.limit ?? 1;
+    const currentPage = raw?.current_pages ?? raw?.current_page ?? params.pages ?? 1;
     const limit = raw?.total_per_page ?? params.limit ?? 10;
     const totalPages = raw?.total_pages ?? Math.ceil(totalItems / limit);
 

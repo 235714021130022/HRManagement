@@ -47,8 +47,8 @@ import RecruitmentDetail from "../modules/recruit_inf/views/RecruitmentDetail";
 import CandidateDetailModal from "../modules/candidate/views/CandidateDetail";
 import JobDetail from "../modules/job/views/JobDetail";
 import Sibar_Report from "../modules/dashboard/views/Sibar_Report";
-import ReportSettings from "../modules/dashboard/components/ReportSettings";
 import General_Sibar from "../modules/setting/General_Sibar";
+import { Potential } from "../modules/potential/views/Potential";
 
 export const createRouterConfig = () => {
   const { Admin, Employee, Employer } = RECRUIT_BASE_ROLE;
@@ -144,7 +144,7 @@ export const createRouterConfig = () => {
           path: potentialCandidateUrl,
           element: (
             <ProtectedRoute allowedRoles={[Admin, Employee]}>
-              <Candidates />
+              <Potential />
             </ProtectedRoute>
           )
         },

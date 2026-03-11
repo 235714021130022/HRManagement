@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { candidateUrl, dashboardUrl, interviewScheUrl, jobsUrl, potentialCandidateUrl, recruitmentInforUrl, settingUrl} from "../../routes/urls";
 import { RECRUIT_BASE_ROLE } from "../../constant/roles";
-import { FaTachometerAlt } from "react-icons/fa";
+import { FaTachometerAlt, FaUserPlus } from "react-icons/fa";
 import { FaBullhorn } from "react-icons/fa";
 import { FaUserTie } from "react-icons/fa";
 import { FaCalendarAlt } from "react-icons/fa";
@@ -37,7 +37,7 @@ export const defaultMenus: IMenuItem[] = [
     {
         path: potentialCandidateUrl,
         name: 'Potential Candidates',
-        icon: <FaUserTie size={18} color="#4A5568"/>,
+        icon: <FaUserPlus size={22} color="#4A5568"/>,
         roles: [RECRUIT_BASE_ROLE.Admin, RECRUIT_BASE_ROLE.Employee]
     },
     {

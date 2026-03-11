@@ -31,7 +31,10 @@ export const getAllCompanies = async (
 ): Promise<GetCompaniesResponse> => {
   const res = await apiClient.get(URL_API_INFORCOMPANY, { params });
 
-  const raw = res.data?.data ?? res.data;
+    const raw =
+        res.data?.data && !Array.isArray(res.data.data)
+            ? res.data.data
+            : res.data;
 
   // nếu raw là object như backend trả
   const list = Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];

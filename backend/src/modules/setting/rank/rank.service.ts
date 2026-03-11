@@ -1,51 +1,65 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CreateRankDTO } from './dto/create_rank';
-import { not } from 'rxjs/internal/util/not';
-import { startWith } from 'rxjs';
 import { generateCode } from 'src/common/utils/generate-code.util';
 import { RankFilterType } from './dto/filter_type';
 import { RankPaginType } from './dto/pagin_type';
-import { Rank } from '@prisma/client';
+import { Prisma, Rank } from '@prisma/client';
 import { UpdateRankDTO } from './dto/update_rank';
+import { RANK_STATUS } from 'src/constant';
 
 @Injectable()
 export class RankService {
   constructor(private prismaService: PrismaService) {}
-  async create(data: CreateRankDTO) {
-  const { rank_code, ...rest } = data;
 
-  const lastR = await this.prismaService.rank.findFirst({
-    where: {
-      rank_code: {
-        not: null,
-        startsWith: 'RK_',
+  private async generateNextRankCode(): Promise<string> {
+    const lastR = await this.prismaService.rank.findFirst({
+      where: {
+        rank_code: {
+          not: null,
+          startsWith: 'RK_',
+        },
       },
-    },
-    orderBy: {
-      rank_code: 'desc',
-    },
-    select: { rank_code: true },
-  });
+      orderBy: {
+        rank_code: 'desc',
+      },
+      select: { rank_code: true },
+    });
 
-  let nextNumber = 1;
-
-  if (lastR?.rank_code) {
-    const match = lastR.rank_code.match(/^RK_(\d+)$/);
-    if (match) {
-      nextNumber = Number(match[1]) + 1;
+    let nextNumber = 1;
+    if (lastR?.rank_code) {
+      const match = lastR.rank_code.match(/^RK_(\d+)$/);
+      if (match) {
+        nextNumber = Number(match[1]) + 1;
+      }
     }
+
+    return generateCode('RK', nextNumber);
   }
 
-  const rankCode = generateCode('RK', nextNumber);
+  async create(data: CreateRankDTO) {
+    const { rank_code, ...rest } = data;
 
-  return this.prismaService.rank.create({
-    data: {
-      ...rest,
-      rank_code: rankCode,
-    },
-  });
-}
+    // Retry to avoid collision when concurrent requests generate the same next code.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const rankCode = await this.generateNextRankCode();
+      try {
+        return await this.prismaService.rank.create({
+          data: {
+            ...rest,
+            rank_code: rankCode,
+          },
+        });
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw new HttpException('Could not generate a unique rank code. Please try again.', HttpStatus.CONFLICT);
+  }
   async getAll(filter: RankFilterType): Promise<RankPaginType> {
     const items_per_pages = Number(filter.items_per_pages) || 10;
     const pages = Number(filter.pages) || 1;
@@ -66,6 +80,15 @@ export class RankService {
         take: items_per_pages,
         skip,
         where: whereCondition,
+        include: {
+          rankUnit: {
+            select: {
+              id: true,
+              full_name: true,
+              acronym_name: true,
+            },
+          },
+        },
         orderBy: { created_at: 'desc' },
       }),
       this.prismaService.rank.count({
@@ -83,6 +106,15 @@ export class RankService {
   async getByID(id: string): Promise<Rank | null> {
     return this.prismaService.rank.findUnique({
       where: { id },
+      include: {
+        rankUnit: {
+          select: {
+            id: true,
+            full_name: true,
+            acronym_name: true,
+          },
+        },
+      },
     });
     
   }
@@ -99,11 +131,11 @@ export class RankService {
 
         if (typeof dataUpdate.is_active === 'boolean') {
         dataUpdate.status = dataUpdate.is_active
-            ? 'Active'
-            : 'Inactive';
+      ? RANK_STATUS.ACTIVE
+      : RANK_STATUS.INACTIVE;
         } else if (typeof dataUpdate.status === 'string') {
         dataUpdate.is_active =
-            dataUpdate.status === 'Active';
+      dataUpdate.status === RANK_STATUS.ACTIVE;
         }
     return this.prismaService.rank.update({
       where: { id },
@@ -113,7 +145,7 @@ export class RankService {
   async delete(id: string): Promise<Rank> {
     return this.prismaService.rank.update({
       where: { id },
-      data: { is_active: false, status: 'Inactive' },
+      data: { is_active: false, status: RANK_STATUS.INACTIVE },
     });
   }
 }

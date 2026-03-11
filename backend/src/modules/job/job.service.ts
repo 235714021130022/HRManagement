@@ -1,6 +1,7 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Job } from '@prisma/client';
 import { generateCode } from 'src/common/utils/generate-code.util';
+import { JOB_STATUS } from 'src/constant';
 import { PrismaService } from 'src/prisma.service';
 import { AuditLogService, type CandidateAuditActor } from '../audit_log/audit_log.service';
 import { CreateJobDto } from './dto/create';
@@ -14,6 +15,37 @@ export class JobService {
     private prisma: PrismaService,
     private auditLogService: AuditLogService,
   ) {}
+
+  private normalizeJobStatus(status?: string | null) {
+    const normalized = (status ?? '').trim().toLowerCase();
+
+    if (!normalized) return JOB_STATUS.IN_PROGRESS;
+
+    if (
+      [
+        'completed',
+        'done',
+        'closed',
+        'inactive',
+      ].includes(normalized)
+    ) {
+      return JOB_STATUS.COMPLETED;
+    }
+
+    if (
+      [
+        'in progress',
+        'in_progress',
+        'inprogress',
+        'pending',
+        'active',
+      ].includes(normalized)
+    ) {
+      return JOB_STATUS.IN_PROGRESS;
+    }
+
+    return JOB_STATUS.IN_PROGRESS;
+  }
 
   private readonly jobCandidateInclude = {
     candidate: {
@@ -63,6 +95,7 @@ export class JobService {
 
   async create(data: CreateJobDto, actor?: CandidateAuditActor) {
     const { candidate_ids, job_code, ...rest } = data;
+    const normalizedStatus = this.normalizeJobStatus(rest.status ?? rest.result_job ?? null);
 
     let finalCode = job_code;
 
@@ -94,6 +127,7 @@ export class JobService {
     const created = await this.prisma.job.create({
       data: {
         ...rest,
+        status: normalizedStatus,
         job_code: finalCode,
         deadline: rest.deadline ? new Date(rest.deadline) : null,
         
@@ -217,6 +251,13 @@ export class JobService {
     beforeJobName = job.name_job;
 
     const dataUpdate: any = { ...rest };
+
+    const hasStatusField = Object.prototype.hasOwnProperty.call(rest, 'status');
+    const hasResultJobField = Object.prototype.hasOwnProperty.call(rest, 'result_job');
+
+    if (hasStatusField || hasResultJobField) {
+      dataUpdate.status = this.normalizeJobStatus(rest.status ?? rest.result_job ?? null);
+    }
 
     const beforeLinks = await tx.job_Candidates.findMany({
       where: { job_id: id },

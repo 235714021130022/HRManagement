@@ -1,4 +1,5 @@
-import { IsArray, IsBoolean, IsDateString, IsOptional, IsString, IsUUID, IsInt } from 'class-validator';
+import { IsArray, IsBoolean, IsDateString, IsOptional, IsString, IsUUID, IsInt, IsIn } from 'class-validator';
+import { JOB_STATUS_VALUES, type JobStatusType } from 'src/constant';
 
 export class CreateJobDto {
   @IsOptional()
@@ -37,8 +38,8 @@ export class CreateJobDto {
   remind_before_minutes?: number;
 
   @IsOptional()
-  @IsString()
-  status?: string;
+  @IsIn(JOB_STATUS_VALUES)
+  status?: JobStatusType;
 
   @IsOptional()
   @IsArray()

@@ -25,11 +25,18 @@ export const getPotentialTypes = async (): Promise<PotentialTypeResponse> => {
   });
 
   const payload = res.data?.data ?? res.data;
+  const list = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.data)
+      ? payload.data
+      : [];
+  const meta = Array.isArray(payload) ? res.data : payload;
+
   return {
-    data: Array.isArray(payload?.data) ? payload.data : [],
-    current_pages: Number(payload?.current_pages ?? 1),
-    items_per_pages: Number(payload?.items_per_pages ?? 200),
-    total_items: Number(payload?.total_items ?? 0),
+    data: list,
+    current_pages: Number(meta?.current_pages ?? 1),
+    items_per_pages: Number(meta?.items_per_pages ?? 200),
+    total_items: Number(meta?.total_items ?? list.length ?? 0),
   };
 };
 

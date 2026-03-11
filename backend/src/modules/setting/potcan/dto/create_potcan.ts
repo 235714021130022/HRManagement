@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreatePotentialTypeDTO {
   @IsString()
@@ -8,4 +8,8 @@ export class CreatePotentialTypeDTO {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_active?: boolean;
 }

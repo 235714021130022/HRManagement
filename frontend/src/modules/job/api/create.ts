@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { URL_API_JOBS } from "../../../constant/config";
+import type { JobStatusType } from "../../../constant";
 import apiClient from "../../../lib/api";
 import type { MutationConfig } from "../../../lib/react-query";
 import type { IJob } from "../types";
@@ -7,6 +8,7 @@ import type { IJob } from "../types";
 export type CreateJobDTO = Omit<IJob, "id" | "created_at" | "updated_at" | "employee" | "jobCandidates"> & {
 	employee_id: string;
 	candidate_ids?: string[];
+	status?: JobStatusType;
 };
 
 export const createJob = async (data: CreateJobDTO): Promise<IJob> => {
