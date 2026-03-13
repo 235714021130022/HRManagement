@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Avatar,
   Box,
@@ -30,12 +30,9 @@ import {
   Text,
   VStack,
   Input,
-  InputGroup,
-  InputLeftElement,
 } from "@chakra-ui/react";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
-import { SearchIcon } from "@chakra-ui/icons";
 import { useDebounce } from "use-debounce";
 import SearchCombobox from "../../../components/common/SearchCombobox";
 import type { ICandidate } from "../types";
@@ -60,12 +57,17 @@ import { BsThreeDotsVertical } from "react-icons/bs";
 import theme from "../../../theme";
 import { useNotify } from "../../../components/notification/NotifyProvider";
 import { BASE_URL } from "../../../constant/config";
+import { candidateUrl } from "../../../routes/urls";
 
 import { useGetInform } from "../../recruit_inf/api/get";
 import type { IRecruitmentInfor } from "../../recruit_inf/types";
 import { useUpdateApplicationStatus } from "../api/update_status";
 import { getApplicationStatusIndex } from "../utils";
 import { APPLICATION_STATUS_STEPS } from "../../../constant";
+import JobModal from "../../job/components/JobModal";
+import type { IJob } from "../../job/types";
+import { useDeleteJob } from "../../job/api/delete";
+import { ModalConfirm } from "../../../components/common/ModalConfirm";
 export default function CandidateDetail() {
   const notify = useNotify();
   const { id: paramId } = useParams();
@@ -132,11 +134,9 @@ export default function CandidateDetail() {
     },
   });
 
-  const onClose = () => {
-    navigate(-1);
-    // or force navigation back to the list:
-    // navigate("/candidates");
-  };
+  const onClose = useCallback(() => {
+    navigate(candidateUrl, { replace: true });
+  }, [navigate]);
 
   const appliedDate = useMemo(
     () => formatDateShort((candidate as ICandidate | undefined)?.date_applied),
@@ -170,6 +170,12 @@ export default function CandidateDetail() {
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isTalentPoolModalOpen, setIsTalentPoolModalOpen] = useState(false);
   const [selectedPotentialTypeId, setSelectedPotentialTypeId] = useState<string>("");
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [jobModalMode, setJobModalMode] = useState<"add" | "edit" | "view">("add");
+  const [selectedJob, setSelectedJob] = useState<IJob | undefined>(undefined);
+  const [isDeleteJobOpen, setIsDeleteJobOpen] = useState(false);
+  const [deleteJobTarget, setDeleteJobTarget] = useState<IJob | undefined>(undefined);
+  const { mutateAsync: deleteJob, isPending: isDeletingJob } = useDeleteJob();
   
 
   const [showAssignPanel, setShowAssignPanel] = useState(false);
@@ -263,6 +269,16 @@ export default function CandidateDetail() {
     [potentialTypeRes],
   );
 
+  const lockedJobCandidates = useMemo(
+    () => [
+      {
+        id: candidateId,
+        name: candidate?.candidate_name ?? candidate?.email ?? candidate?.phone_number ?? "Candidate",
+      },
+    ],
+    [candidateId, candidate?.candidate_name, candidate?.email, candidate?.phone_number],
+  );
+
   const openTalentPoolModal = () => {
     setSelectedPotentialTypeId((candidate as ICandidate | undefined)?.potential_type_id ?? "");
     setIsTalentPoolModalOpen(true);
@@ -348,6 +364,58 @@ export default function CandidateDetail() {
     event.target.value = "";
   };
 
+  const openAddJobModal = () => {
+    setSelectedJob(undefined);
+    setJobModalMode("add");
+    setIsJobModalOpen(true);
+  };
+
+  const openViewJobModal = (job: IJob) => {
+    setSelectedJob(job);
+    setJobModalMode("view");
+    setIsJobModalOpen(true);
+  };
+
+  const openEditJobModal = (job: IJob) => {
+    setSelectedJob(job);
+    setJobModalMode("edit");
+    setIsJobModalOpen(true);
+  };
+
+  const openDeleteJobModal = (job: IJob) => {
+    setDeleteJobTarget(job);
+    setIsDeleteJobOpen(true);
+  };
+
+  const handleDeleteJob = async () => {
+    if (!deleteJobTarget?.id) return;
+
+    try {
+      await deleteJob(deleteJobTarget.id);
+      notify({
+        type: "success",
+        message: "Deleted successfully",
+        description: `Job "${deleteJobTarget.name_job || "Untitled job"}" has been removed.`,
+      });
+      setIsDeleteJobOpen(false);
+      setDeleteJobTarget(undefined);
+      refetch();
+    } catch (error: any) {
+      const rawMessage = error?.response?.data?.message;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.join(", ")
+        : typeof rawMessage === "string"
+          ? rawMessage
+          : "Could not delete this job.";
+
+      notify({
+        type: "error",
+        message: "Delete failed",
+        description: message,
+      });
+    }
+  };
+
   // main tabs
   const [mainTab, setMainTab] = useState(0);
   const [profileSubTab, setProfileSubTab] = useState(0);
@@ -363,7 +431,7 @@ export default function CandidateDetail() {
     <Modal isOpen={true} onClose={onClose} isCentered size="6xl">
       <ModalOverlay />
       <ModalContent maxW="1250px" h="90vh" overflow="hidden">
-        <ModalCloseButton />
+        <ModalCloseButton zIndex={2} onClick={onClose} />
 
         <ModalBody p={0} h="100%">
           {isLoading ? (
@@ -828,6 +896,10 @@ export default function CandidateDetail() {
                     <TabPanel p={4} h="100%" overflow="auto">
                       <JobCandidate
                         jobCandidates={candidate.jobCandidates ?? []}
+                        onAddClick={openAddJobModal}
+                        onViewClick={openViewJobModal}
+                        onEditClick={openEditJobModal}
+                        onDeleteClick={openDeleteJobModal}
                       />
                     </TabPanel>
 
@@ -898,6 +970,33 @@ export default function CandidateDetail() {
         currentStatus={latestApplication?.status}
         onUpdate={handleSubmitStatus}
         isLoading={updateStatusMutation.isPending}
+      />
+
+      <JobModal
+        isOpen={isJobModalOpen}
+        onClose={() => {
+          setIsJobModalOpen(false);
+          setSelectedJob(undefined);
+        }}
+        mode={jobModalMode}
+        data={selectedJob}
+        fixedCandidates={lockedJobCandidates}
+        lockCandidateSelection
+        onSuccess={() => {
+          setIsJobModalOpen(false);
+          setSelectedJob(undefined);
+          refetch();
+        }}
+      />
+
+      <ModalConfirm
+        open={isDeleteJobOpen}
+        setOpen={setIsDeleteJobOpen}
+        title="Delete job"
+        message={`Are you sure you want to delete "${deleteJobTarget?.name_job || "this job"}"?`}
+        titleButton="Delete"
+        onClick={handleDeleteJob}
+        confirmButtonProps={{ isLoading: isDeletingJob }}
       />
     </Modal>
   );

@@ -24,47 +24,49 @@ import theme from "../../../../theme";
 import LabelItem from "../../../../components/common/Label";
 import RichTextEditorField from "../../../../components/common/RichTextEditorField";
 import { useNotify } from "../../../../components/notification/NotifyProvider";
-import type { IPositionPost, PositionPostFormValues } from "../types";
+import type { PositionPostFormValues } from "../types";
 import { useCreatePositionPost } from "../api/create";
-import { useUpdatePositionPost } from "../api/update";
-import { useGetCompanies } from "../../../inform_company/api/get_company";
 import {
   POSITION_POST_STATUS,
   POSITION_POST_STATUS_VALUES,
-  type PositionPostStatusType,
 } from "../../../../constant";
 
-interface PositionPostModalProps {
+/* ── Types ── */
+
+export interface AddPositionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: "add" | "edit";
-  data?: IPositionPost;
-  onSuccess?: () => void;
+  /** Selected branch/company ID from parent form - required and immutable here */
+  companyId: string;
+  /** Display name of branch/company (read-only) */
+  companyName: string;
+  /** Callback after successful creation - receives new position ID */
+  onSuccess?: (newPositionId: string) => void;
 }
 
-const safeStr = (v?: string | null) => v ?? "";
+/* ── Constants ── */
 
 const POSITION_STATUS_OPTIONS = [...POSITION_POST_STATUS_VALUES];
 
-export default function PositionPostModal({
+const safeStr = (v?: string | null) => v ?? "";
+
+/* ── Component ── */
+
+export default function AddPositionModal({
   isOpen,
   onClose,
-  mode,
-  data,
+  companyId,
+  companyName,
   onSuccess,
-}: PositionPostModalProps) {
+}: AddPositionModalProps) {
   const notify = useNotify();
   const { mutateAsync: createPost } = useCreatePositionPost();
-  const { mutateAsync: updatePost } = useUpdatePositionPost();
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
-
-  const { data: companiesRes } = useGetCompanies({ page: 1, limit: 200 });
-  const companies = companiesRes?.data ?? [];
 
   const defaultValues: PositionPostFormValues = useMemo(
     () => ({
       name_post: "",
-      unit_id: "",
+      unit_id: companyId,
       description_post: "",
       requirements_post: "",
       benefits_post: "",
@@ -74,6 +76,7 @@ export default function PositionPostModal({
       status: POSITION_POST_STATUS.ACTIVE,
       is_active: true,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -88,37 +91,24 @@ export default function PositionPostModal({
     defaultValues,
   });
 
+  /* Reset each time the modal opens */
   useEffect(() => {
-    if (!isOpen) return;
-    if (mode === "edit" && data) {
-      reset({
-        name_post: safeStr(data.name_post),
-        unit_id: safeStr(data.unit_id),
-        description_post: safeStr(data.description_post),
-        requirements_post: safeStr(data.requirements_post),
-        benefits_post: safeStr(data.benefits_post),
-        auto_rotation: Boolean(data.auto_rotation),
-        auto_eli_candidate: Boolean(data.auto_eli_candidate),
-        auto_near: Boolean(data.auto_near),
-        status:
-          (safeStr(data.status) as PositionPostStatusType) ||
-          POSITION_POST_STATUS.ACTIVE,
-        is_active: Boolean(data.is_active),
-      });
-    } else {
-      reset(defaultValues);
-    }
-  }, [isOpen, mode, data, reset, defaultValues]);
+    if (isOpen) reset({ ...defaultValues, unit_id: companyId });
+  }, [isOpen, companyId, defaultValues, reset]);
+
+  const handleClose = () => {
+    reset(defaultValues);
+    onClose();
+  };
 
   const onSubmit = async (values: PositionPostFormValues) => {
     setIsSubmittingForm(true);
-
     const payload = {
       name_post: values.name_post.trim() || null,
-      unit_id: values.unit_id || null,
-      description_post: values.description_post.trim() || null,
-      requirements_post: values.requirements_post.trim() || null,
-      benefits_post: values.benefits_post.trim() || null,
+      unit_id: companyId,
+      description_post: safeStr(values.description_post).trim() || null,
+      requirements_post: safeStr(values.requirements_post).trim() || null,
+      benefits_post: safeStr(values.benefits_post).trim() || null,
       auto_rotation: Boolean(values.auto_rotation),
       auto_eli_candidate: Boolean(values.auto_eli_candidate),
       auto_near: Boolean(values.auto_near),
@@ -127,24 +117,18 @@ export default function PositionPostModal({
     };
 
     try {
-      if (mode === "add") {
-        await createPost(payload as any);
-        notify({ message: "Position Post created successfully", type: "success" });
-      } else {
-        if (!data?.id) return;
-        await updatePost({ id: data.id, data: payload as any });
-        notify({ message: "Position Post updated successfully", type: "success" });
-      }
-      onSuccess?.();
+      const newPost = await createPost(payload as any);
+      notify({ message: "Position created successfully", type: "success" });
+      onSuccess?.(newPost.id);
       reset(defaultValues);
       onClose();
     } catch (err: any) {
-      let msg = "An error occurred";
-      if (err?.response?.data) {
-        const d = err.response.data;
-        if (Array.isArray(d.message)) msg = d.message.join(", ");
-        else if (typeof d.message === "string") msg = d.message;
-      }
+      const d = err?.response?.data;
+      const msg = Array.isArray(d?.message)
+        ? d.message.join(", ")
+        : typeof d?.message === "string"
+          ? d.message
+          : "An error occurred. Please try again.";
       notify({ message: msg, type: "error" });
     } finally {
       setIsSubmittingForm(false);
@@ -152,7 +136,7 @@ export default function PositionPostModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} isCentered>
+    <Modal isOpen={isOpen} onClose={handleClose} isCentered>
       <ModalOverlay />
       <ModalContent
         maxW={{ base: "95%", md: "860px" }}
@@ -168,32 +152,36 @@ export default function PositionPostModal({
           fontSize="lg"
           py={4}
         >
-          {mode === "add" ? "ADD POSITION POST" : "UPDATE POSITION POST"}
+          ADD POSITION
         </ModalHeader>
 
         <ModalCloseButton />
 
         <form onSubmit={handleSubmit(onSubmit)}>
           <ModalBody pb={4} px={{ base: 4, md: 6 }}>
-            {/* 1) BASIC INFO */}
-            <Text fontWeight={700} mb={2}>
+
+            {/* 1) BASIC INFORMATION */}
+            <Text fontWeight={700} mb={2} fontSize="md">
               Basic information
             </Text>
 
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              {mode === "edit" && (
-                <FormControl>
-                  <LabelItem label="Position Code (Auto)" fontSize="md" />
-                  <Input
-                    value={data?.position_code ?? "Auto generate after save"}
-                    isReadOnly
-                    bg="gray.50"
-                    borderColor="#d4d4d8cc"
-                    size="md"
-                  />
-                </FormControl>
-              )}
 
+              {/* Branch - read-only */}
+              <FormControl>
+                <LabelItem label="Company branch" fontSize="md" />
+                <Input
+                  value={companyName}
+                  isReadOnly
+                  bg="gray.50"
+                  borderColor="#d4d4d8cc"
+                  size="md"
+                  _focus={{ boxShadow: "none", borderColor: "#d4d4d8cc" }}
+                  cursor="default"
+                />
+              </FormControl>
+
+              {/* Position name */}
               <FormControl isInvalid={!!errors.name_post}>
                 <LabelItem label="Position name" required fontSize="md" />
                 <Input
@@ -202,29 +190,13 @@ export default function PositionPostModal({
                   size="md"
                   {...register("name_post", {
                     required: "Position name is required",
-                    maxLength: { value: 100, message: "Max 100 characters" },
+                    maxLength: { value: 100, message: "Maximum 100 characters" },
                   })}
                 />
                 <FormErrorMessage>{errors.name_post?.message}</FormErrorMessage>
               </FormControl>
 
-              <FormControl isInvalid={!!errors.unit_id}>
-                <LabelItem label="Company / Unit" fontSize="md" />
-                <Select
-                  borderColor="#d4d4d8cc"
-                  size="md"
-                  placeholder="-- Select company --"
-                  {...register("unit_id")}
-                >
-                  {companies.map((c: any) => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name || c.acronym_name || c.id}
-                    </option>
-                  ))}
-                </Select>
-                <FormErrorMessage>{errors.unit_id?.message}</FormErrorMessage>
-              </FormControl>
-
+              {/* Status */}
               <FormControl isInvalid={!!errors.status}>
                 <LabelItem label="Status" fontSize="md" />
                 <Select borderColor="#d4d4d8cc" size="md" {...register("status")}>
@@ -236,12 +208,13 @@ export default function PositionPostModal({
                 </Select>
                 <FormErrorMessage>{errors.status?.message}</FormErrorMessage>
               </FormControl>
+
             </SimpleGrid>
 
             <Divider my={4} />
 
             {/* 2) CONTENT */}
-            <Text fontWeight={700} mb={2}>
+            <Text fontWeight={700} mb={2} fontSize="md">
               Content
             </Text>
 
@@ -251,10 +224,10 @@ export default function PositionPostModal({
                 control={control}
                 render={({ field }) => (
                   <RichTextEditorField
-                    label="Description"
+                    label="General job description"
                     value={field.value ?? ""}
                     onChange={field.onChange}
-                    placeholder="Job description..."
+                    placeholder="Describe the position..."
                     minHeight="180px"
                     error={errors.description_post?.message}
                   />
@@ -266,7 +239,7 @@ export default function PositionPostModal({
                 control={control}
                 render={({ field }) => (
                   <RichTextEditorField
-                    label="Requirements"
+                    label="Job requirements"
                     value={field.value ?? ""}
                     onChange={field.onChange}
                     placeholder="Candidate requirements..."
@@ -284,7 +257,7 @@ export default function PositionPostModal({
                     label="Benefits"
                     value={field.value ?? ""}
                     onChange={field.onChange}
-                    placeholder="Benefits offered..."
+                    placeholder="Benefits candidates will receive..."
                     minHeight="160px"
                     error={errors.benefits_post?.message}
                   />
@@ -294,66 +267,43 @@ export default function PositionPostModal({
 
             <Divider my={4} />
 
-            {/* 3) AUTOMATION */}
-            <Text fontWeight={700} mb={3}>
+            {/* 3) AUTOMATION SETTINGS */}
+            <Text fontWeight={700} mb={3} fontSize="md">
               Automation settings
             </Text>
 
             <Box px={1}>
               <HStack spacing={8} wrap="wrap">
                 <FormControl w="auto">
-                  <Checkbox
-                    colorScheme="blue"
-                    size="md"
-                    {...register("auto_rotation")}
-                  >
-                    <Text fontSize="sm" fontWeight="500">
-                      Auto rotation
-                    </Text>
+                  <Checkbox colorScheme="blue" size="md" {...register("auto_rotation")}>
+                    <Text fontSize="md" fontWeight="500">Auto rotation</Text>
                   </Checkbox>
                 </FormControl>
 
                 <FormControl w="auto">
-                  <Checkbox
-                    colorScheme="blue"
-                    size="md"
-                    {...register("auto_eli_candidate")}
-                  >
-                    <Text fontSize="sm" fontWeight="500">
-                      Auto eliminate candidate
-                    </Text>
+                  <Checkbox colorScheme="blue" size="md" {...register("auto_eli_candidate")}>
+                    <Text fontSize="md" fontWeight="500">Auto eliminate candidate</Text>
                   </Checkbox>
                 </FormControl>
 
                 <FormControl w="auto">
-                  <Checkbox
-                    colorScheme="blue"
-                    size="md"
-                    {...register("auto_near")}
-                  >
-                    <Text fontSize="sm" fontWeight="500">
-                      Auto near
-                    </Text>
+                  <Checkbox colorScheme="blue" size="md" {...register("auto_near")}>
+                    <Text fontSize="md" fontWeight="500">Auto near</Text>
                   </Checkbox>
                 </FormControl>
 
                 <FormControl w="auto">
-                  <Checkbox
-                    colorScheme="blue"
-                    size="md"
-                    {...register("is_active")}
-                  >
-                    <Text fontSize="sm" fontWeight="500">
-                      Is active
-                    </Text>
+                  <Checkbox colorScheme="blue" size="md" {...register("is_active")}>
+                    <Text fontSize="md" fontWeight="500">Is active</Text>
                   </Checkbox>
                 </FormControl>
               </HStack>
             </Box>
+
           </ModalBody>
 
           <ModalFooter>
-            <Button size="md" mr={3} onClick={onClose}>
+            <Button size="md" mr={3} onClick={handleClose}>
               CANCEL
             </Button>
             <Button
@@ -363,7 +313,7 @@ export default function PositionPostModal({
               isLoading={isSubmitting || isSubmittingForm}
               size="md"
             >
-              {mode === "add" ? "ADD" : "UPDATE"}
+              ADD
             </Button>
           </ModalFooter>
         </form>

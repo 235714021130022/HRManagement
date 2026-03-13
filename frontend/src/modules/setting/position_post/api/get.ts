@@ -7,6 +7,7 @@ export type GetPositionPostsParams = {
   pages?: number;
   items_per_pages?: number;
   search?: string;
+  unit_id?: string;
 };
 
 export type Pagination = {

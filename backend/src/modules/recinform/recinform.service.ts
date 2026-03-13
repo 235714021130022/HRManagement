@@ -535,37 +535,49 @@ export class RecinformService {
 
       if (plan?.length) {
         for (const p of plan) {
-          const { batches, postes, ...parent } = p;
+          const {
+            batches,
+            postes,
+            monthly_target,
+            expected_deadline,
+            ...parent
+          } = p;
 
           const parentCreated = await tx.recruitment_Plan_Parent.create({
             data: {
-              recruitment_id: rec.id,
-              monthly_target: p.monthly_target ? new Date(p.monthly_target) : undefined,
-              expected_deadline: p.expected_deadline ? new Date(p.expected_deadline) : undefined,
-            
               ...parent,
+              recruitment_id: rec.id,
+              monthly_target: monthly_target ? new Date(monthly_target) : undefined,
+              expected_deadline: expected_deadline ? new Date(expected_deadline) : undefined,
             },
           });
 
           if (batches?.length) {
             await tx.recruitment_Plan_Child_Batches.createMany({
-              data: batches.map((b) => ({
-                recruitment_plan_parent_id: parentCreated.id,
-                from_date: b.from_date ? new Date(b.from_date) : undefined,
-                to_date: b.to_date ? new Date(b.to_date) : undefined,
-                ...b,
-              })),
+              data: batches.map((b) => {
+                const { from_date, to_date, monthly_target, ...restBatch } = b;
+                return {
+                  ...restBatch,
+                  recruitment_plan_parent_id: parentCreated.id,
+                  from_date: from_date ? new Date(from_date) : undefined,
+                  to_date: to_date ? new Date(to_date) : undefined,
+                  monthly_target: monthly_target ? new Date(monthly_target) : undefined,
+                };
+              }),
             });
           }
 
           if (postes?.length) {
             await tx.recruitment_Plan_Child_Posted.createMany({
-              data: postes.map((po) => ({
-                recruitment_plan_parent_id: parentCreated.id,
-                posted_date: po.posted_date ? new Date(po.posted_date) : undefined,
-                expiration_date: po.expiration_date ? new Date(po.expiration_date) : undefined,
-                ...po,
-              })),
+              data: postes.map((po) => {
+                const { posted_date, expiration_date, ...restPost } = po;
+                return {
+                  ...restPost,
+                  recruitment_plan_parent_id: parentCreated.id,
+                  posted_date: posted_date ? new Date(posted_date) : undefined,
+                  expiration_date: expiration_date ? new Date(expiration_date) : undefined,
+                };
+              }),
             });
           }
         }
@@ -592,17 +604,30 @@ export class RecinformService {
   const items_per_pages = Number(filter.items_per_pages) || 10;
   const pages = Number(filter.pages) || 1;
   const search = filter.search ? filter.search.trim() : '';
+  const status = filter.status?.trim();
+  const departmentId = filter.department_id?.trim();
 
   const skip = pages > 1 ? (pages - 1) * items_per_pages : 0;
 
-  const where = {
+  const where: any = {
     is_active: true,
-    OR: [
+  };
+
+  if (search) {
+    where.OR = [
       { recruitment_code: { contains: search, mode: 'insensitive' as const } },
       { internal_title: { contains: search, mode: 'insensitive' as const } },
       { post_title: { contains: search, mode: 'insensitive' as const } },
-    ],
-  };
+    ];
+  }
+
+  if (status && status.toUpperCase() !== 'ALL') {
+    where.status = status;
+  }
+
+  if (departmentId && departmentId.toLowerCase() !== 'all') {
+    where.department_id = departmentId;
+  }
 
   const [recIn, total_items] = await Promise.all([
     this.prismaService.recruitment_Infor.findMany({
@@ -710,33 +735,49 @@ export class RecinformService {
       await tx.recruitment_Plan_Parent.deleteMany({ where: { recruitment_id: id } });
 
       for (const p of plan) {
-        const { batches, postes, ...parent } = p;
+        const {
+          batches,
+          postes,
+          monthly_target,
+          expected_deadline,
+          ...parent
+        } = p;
 
         const parentCreated = await tx.recruitment_Plan_Parent.create({
-          data: { recruitment_id: id, ...parent },
+          data: {
+            ...parent,
+            recruitment_id: id,
+            monthly_target: monthly_target ? new Date(monthly_target) : undefined,
+            expected_deadline: expected_deadline ? new Date(expected_deadline) : undefined,
+          },
         });
 
         if (batches?.length) {
           await tx.recruitment_Plan_Child_Batches.createMany({
-            data: batches.map(b => ({
-              recruitment_plan_parent_id: parentCreated.id,
-                              from_date: b.from_date ? new Date(b.from_date) : undefined,
-                to_date: b.to_date ? new Date(b.to_date) : undefined,
-
-              ...b,
-            })),
+            data: batches.map((b) => {
+              const { from_date, to_date, monthly_target, ...restBatch } = b;
+              return {
+                ...restBatch,
+                recruitment_plan_parent_id: parentCreated.id,
+                from_date: from_date ? new Date(from_date) : undefined,
+                to_date: to_date ? new Date(to_date) : undefined,
+                monthly_target: monthly_target ? new Date(monthly_target) : undefined,
+              };
+            }),
           });
         }
 
         if (postes?.length) {
           await tx.recruitment_Plan_Child_Posted.createMany({
-            data: postes.map(po => ({
-              recruitment_plan_parent_id: parentCreated.id,
-                              posted_date: po.posted_date ? new Date(po.posted_date) : undefined,
-                expiration_date: po.expiration_date ? new Date(po.expiration_date) : undefined,
-
-              ...po,
-            })),
+            data: postes.map((po) => {
+              const { posted_date, expiration_date, ...restPost } = po;
+              return {
+                ...restPost,
+                recruitment_plan_parent_id: parentCreated.id,
+                posted_date: posted_date ? new Date(posted_date) : undefined,
+                expiration_date: expiration_date ? new Date(expiration_date) : undefined,
+              };
+            }),
           });
         }
       }

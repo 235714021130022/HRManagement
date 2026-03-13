@@ -87,9 +87,10 @@ export default function SearchCombobox({
 
   const showClearButton = value && !isDisabled && isClearable;
   const textSize = size === 'md' || size === 'lg' ? 'md' : 'sm';
+  const dropdownZIndex = typeof zIndex === 'number' ? zIndex + 1 : zIndex;
 
   return (
-    <Box position="relative" ref={ref} zIndex={zIndex}>
+    <Box position="relative" ref={ref} zIndex={open ? zIndex : 'auto'}>
       <InputGroup>
         <Input
           isDisabled={isDisabled}
@@ -136,7 +137,7 @@ export default function SearchCombobox({
           shadow="md"
           border="1px solid #e5e5e5"
           borderRadius="md"
-          zIndex={1000}
+          zIndex={dropdownZIndex}
           maxH="180px"
           overflowY="auto"
           ref={listRef}

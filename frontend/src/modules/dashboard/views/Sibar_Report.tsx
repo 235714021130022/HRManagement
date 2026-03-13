@@ -182,7 +182,7 @@ export default function RecruitmentDashboardMockupTSX() {
   };
 
   return (
-    <Box minH="100vh" bg={BG_PAGE} position="relative" overflow="hidden">
+    <Box minH="100vh" position="relative" overflow="hidden">
       <Box
         position="absolute"
         top="-120px"

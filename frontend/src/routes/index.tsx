@@ -18,6 +18,7 @@ import {
   positionPostUrl,
   potentialCandidateUrl,
   rankUrl,
+  recruitmentInforAddUrl,
   recruitmentInforDetailUrl,
   recruitmentInforUrl,
   sendEmailUrl,
@@ -29,7 +30,6 @@ import { Home } from "../modules/home/Home";
 import { CompanyRegister } from "../modules/company_register/views/CompanyRegister";
 import { Employees } from "../modules/employee/views/Employee";
 import { InforCompany } from "../modules/inform_company/views/InformationCompany";
-import { Recruitment } from "../modules/recruit_inf/views/Recruitment";
 import { Candidates } from "../modules/candidate/views/Candidate";
 import { Interview_Schedule } from "../modules/interview_schedule/views/Interview_Schedule";
 import { Job } from "../modules/job/views/Job";
@@ -49,6 +49,8 @@ import JobDetail from "../modules/job/views/JobDetail";
 import Sibar_Report from "../modules/dashboard/views/Sibar_Report";
 import General_Sibar from "../modules/setting/General_Sibar";
 import { Potential } from "../modules/potential/views/Potential";
+import RecruitmentAdd from "../modules/recruit_inf/views/RecruitmentAdd";
+import { Recruitment } from "../modules/recruit_inf/views/Recruitment";
 
 export const createRouterConfig = () => {
   const { Admin, Employee, Employer } = RECRUIT_BASE_ROLE;
@@ -121,6 +123,14 @@ export const createRouterConfig = () => {
           element: (
             <ProtectedRoute allowedRoles={[Admin, Employer]}>
               <Recruitment />
+            </ProtectedRoute>
+          )
+        },
+        {
+          path: recruitmentInforAddUrl,
+          element: (
+            <ProtectedRoute allowedRoles={[Admin, Employer]}>
+              <RecruitmentAdd />
             </ProtectedRoute>
           )
         },

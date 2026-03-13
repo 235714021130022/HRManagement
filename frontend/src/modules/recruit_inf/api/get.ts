@@ -1,7 +1,8 @@
 import { keepPreviousData, useQuery, type UseQueryOptions } from "@tanstack/react-query";
-import { URL_API_EMPLOYEE, URL_API_RECRUITEMENT_INFOR } from "../../../constant/config";
+import { URL_API_RECRUITEMENT_INFOR } from "../../../constant/config";
 import apiClient from "../../../lib/api";
 import type { IRecruitmentInfor } from "../types";
+import { buildRecruitmentActivities } from "../utils";
 
 export type IRecInformData = IRecruitmentInfor;
 export type Pagination = {
@@ -16,6 +17,7 @@ export type GetRecInfromParams = {
     limit?: number;
     search?: string;
     status?: string;
+  department_id?: string;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc' | string;
 }
@@ -29,18 +31,37 @@ export const getAllRecInform = async (params: GetRecInfromParams) => {
   const res = await apiClient.get(URL_API_RECRUITEMENT_INFOR, {
     params: {
       pages: params.pages,
-      items_per_pages: params.limit, // IMPORTANT: map đúng tên backend
+      items_per_pages: params.limit, // IMPORTANT: keep backend parameter name
       search: params.search,
+      status: params.status,
+      department_id: params.department_id,
     },
   });
 
   const raw = res.data;
-  const list = Array.isArray(raw?.data) ? raw.data : [];
+  const payload = raw?.data && !Array.isArray(raw.data) ? raw.data : raw;
+  const sourceList = Array.isArray(payload?.data)
+    ? payload.data
+    : Array.isArray(raw?.data)
+      ? raw.data
+      : [];
 
-  const totalItems = raw?.total_items ?? 0;
-  const currentPage = raw?.current_pages ?? 1;
-  const limit = raw?.items_per_pages ?? (params.limit ?? 10);
-  const totalPages = Math.ceil(totalItems / limit);
+  const list = sourceList.map((item: IRecruitmentInfor) => {
+    const departmentName = item.department_name ?? item.department?.full_name ?? null;
+    const workLocationName = item.work_location_name ?? item.workLocation?.full_name ?? null;
+
+    return {
+      ...item,
+      department_name: departmentName,
+      work_location_name: workLocationName,
+      activities: buildRecruitmentActivities(item),
+    };
+  });
+
+  const totalItems = Number(payload?.total_items ?? raw?.total_items ?? 0);
+  const currentPage = Number(payload?.current_pages ?? raw?.current_pages ?? params.pages ?? 1);
+  const limit = Number(payload?.items_per_pages ?? raw?.items_per_pages ?? params.limit ?? 10);
+  const totalPages = limit > 0 ? Math.ceil(totalItems / limit) : 0;
 
   return {
     data: list,

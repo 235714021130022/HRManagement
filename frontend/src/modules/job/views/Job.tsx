@@ -12,12 +12,15 @@ import type { IJob } from "../types";
 import JobModal from "../components/JobModal";
 import { ModalConfirm } from "../../../components/common/ModalConfirm";
 import { useNotify } from "../../../components/notification/NotifyProvider";
+import { PaginationBar } from "../../../components/common/PaginationBar";
 
 export function Job() {
     const notify = useNotify();
     const navigate = useNavigate();
     const hasRole = useAuthStore((s) => s.hasRole);
     const isAdmin = hasRole(RECRUIT_BASE_ROLE.Admin);
+    const [page, setPage] = useState(1);
+    const [limit, setLimit] = useState(10);
     const [selectedCompany, setSelectedCompany] = useState("all");
     const [isJobModalOpen, setIsJobModalOpen] = useState(false);
     const [jobModalMode, setJobModalMode] = useState<"add" | "edit">("add");
@@ -28,13 +31,19 @@ export function Job() {
     const { mutateAsync: deleteJob, isPending: isDeleting } = useDeleteJob();
 
     const { data, isLoading, isError } = useGetJob({
-        pages: 1,
-        limit: 100,
+        pages: page,
+        limit,
         sortBy: "deadline",
         sortOrder: "asc",
     });
 
     const jobs = data?.data ?? [];
+    const pagination = data?.pagination ?? {
+        totalItems: 0,
+        totalPages: 1,
+        currentPage: page,
+        limit,
+    };
 
     const companyOptions = useMemo(() => {
         if (!isAdmin) {
@@ -138,7 +147,10 @@ export function Job() {
                         <Select
                             w={{ base: "220px", md: "280px" }}
                             value={selectedCompany}
-                            onChange={(e) => setSelectedCompany(e.target.value)}
+                            onChange={(e) => {
+                                setSelectedCompany(e.target.value);
+                                setPage(1);
+                            }}
                         >
                             <option value="all">All companies</option>
                             {companyOptions.map((company) => (
@@ -149,6 +161,17 @@ export function Job() {
                         </Select>
                     ) : null
                 }
+            />
+
+            <PaginationBar
+                total={selectedCompany === "all" ? pagination.totalItems : filteredJobs.length}
+                page={page}
+                perPage={limit}
+                onPageChange={(p) => setPage(p)}
+                onPerPageChange={(n) => {
+                    setLimit(n);
+                    setPage(1);
+                }}
             />
 
             <JobModal

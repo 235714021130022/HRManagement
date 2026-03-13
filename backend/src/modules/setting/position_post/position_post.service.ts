@@ -59,34 +59,30 @@ export class PositionPostService {
         const items_per_pages = Number(filter.items_per_pages) || 10;
         const pages = Number(filter.pages) || 1;
         const search = filter.search ? filter.search.trim() : '';
+        const unitId = filter.unit_id?.trim();
 
         const skip = pages > 1 ? (pages - 1) * items_per_pages : 0;
+
+        const where: Prisma.Setting_Position_PostsWhereInput = {
+            is_active: true,
+            OR: [
+                { name_post: { contains: search, mode: 'insensitive' } },
+                { position_code: { contains: search, mode: 'insensitive' } },
+            ],
+            AND: [
+                { status: { not: POSITION_POST_STATUS.INACTIVE } },
+            ],
+            ...(unitId ? { unit_id: unitId } : {}),
+        };
+
         const post = await this.prismaService.setting_Position_Posts.findMany({
             take: items_per_pages,
             skip,
-            where: {
-                is_active: true,
-                OR: [
-                    { name_post: {contains: search, mode: 'insensitive'}},
-                    { position_code: {contains: search, mode: 'insensitive'}}
-                ],
-                AND: [
-                    { status: { not: POSITION_POST_STATUS.INACTIVE } }
-                ]
-            },
+            where,
             orderBy: {created_at: 'desc'}
         })
         const total_items = await this.prismaService.setting_Position_Posts.count({
-            where: {
-                is_active: true,
-                OR: [
-                    {name_post: {contains: search, mode: 'insensitive'}},
-                    {position_code: {contains: search, mode: 'insensitive'}}
-                ],
-                AND: [
-                    { status: { not: POSITION_POST_STATUS.INACTIVE } }
-                ]
-            }
+            where
         })
         return {
             data: post,

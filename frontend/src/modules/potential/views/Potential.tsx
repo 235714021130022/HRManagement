@@ -109,7 +109,7 @@ export function Potential() {
   const potentialTypeOptions = potentialTypeRes?.data ?? [];
   const potentialTypeSelectOptions = potentialTypeOptions.map((item) => ({
     value: item.id,
-    label: item.name,
+    label: (item.name ?? "").toUpperCase(),
   }));
 
   const columns: HeaderTable[] = [
@@ -142,7 +142,7 @@ export function Potential() {
     ),
     potential_type: (_: any, row: ICandidate) => (
       <Badge borderRadius="full" px={3} py={1} colorScheme="purple" textTransform="none">
-        {row.potential?.name || "Uncategorized"}
+        {(row.potential?.name || "Uncategorized").toUpperCase()}
       </Badge>
     ),
     recruitment_position: (_: any, row: ICandidate) => (
@@ -332,7 +332,7 @@ export function Potential() {
             }}
             options={potentialTypeOptions.map((item) => ({
               id: item.id,
-              name: item.name,
+              name: (item.name ?? "").toUpperCase(),
             }))}
             placeholder={isPotentialTypeLoading ? "Loading potential types..." : "Filter by potential type"}
             isDisabled={isPotentialTypeLoading}

@@ -28,7 +28,7 @@ import {
   SearchIcon,
   TimeIcon,
 } from "@chakra-ui/icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import theme from "../../../theme";
 import {
   SCHEDULE_TYPE_DISPLAY,
@@ -39,6 +39,7 @@ import Modal_Interview from "../components/Modal_Interview";
 import InterviewIllustration from "../components/InterviewIllustration";
 import { useGetInterview } from "../api/get";
 import type { IInterviewSchedule, IInterviewScheduleDetail } from "../types";
+import { PaginationBar } from "../../../components/common/PaginationBar";
 
 type Nullable<T> = T | null | undefined;
 
@@ -883,10 +884,12 @@ export const Interview_Schedule = () => {
   const [search, setSearch] = useState("");
   const [selectedCompany, setSelectedCompany] = useState("all");
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
 
   const { data, isLoading, isFetching } = useGetInterview({
     pages: 1,
-    limit: 100,
+    limit: 1000,
     search: "",
     sortBy: "times",
     sortOrder: "asc",
@@ -954,8 +957,15 @@ export const Interview_Schedule = () => {
   }, [normalizedSchedules, currentWeek, search, selectedCompany]);
 
   const groupedSchedules = useMemo(() => {
-    return groupSchedules(filteredSchedules);
-  }, [filteredSchedules]);
+    const start = (page - 1) * limit;
+    const end = start + limit;
+    const currentPageItems = filteredSchedules.slice(start, end);
+    return groupSchedules(currentPageItems);
+  }, [filteredSchedules, page, limit]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, selectedCompany, currentWeek]);
 
   const summary = useMemo(() => {
     const total = filteredSchedules.length;
@@ -1256,6 +1266,19 @@ export const Interview_Schedule = () => {
           )}
         </Box>
       </VStack>
+
+      {!isLoading && filteredSchedules.length > 0 && (
+        <PaginationBar
+          total={filteredSchedules.length}
+          page={page}
+          perPage={limit}
+          onPageChange={(p) => setPage(p)}
+          onPerPageChange={(n) => {
+            setLimit(n);
+            setPage(1);
+          }}
+        />
+      )}
 
         <Modal_Interview
           isOpen={openModal}

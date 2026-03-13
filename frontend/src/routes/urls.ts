@@ -12,6 +12,7 @@ export const employeeDetailUrl = '/employee/:id';
 export const inforCompanyUrl = '/inforcompany';
 export const inforCompanyDetailUrl = '/inforcompany/:id';
 export const recruitmentInforUrl = '/recinform';
+export const recruitmentInforAddUrl = '/recinform/add';
 export const recruitmentInforDetailUrl = '/recinform/:id';
 export const candidateUrl = '/candidate';
 export const potentialCandidateUrl = '/potential-candidate';

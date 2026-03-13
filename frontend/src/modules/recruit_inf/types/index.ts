@@ -1,6 +1,17 @@
 import type { RecruitmentStatusType } from "../../../constant";
 import type { IInforCompany } from "../../inform_company/types";
 
+export type RecruitmentActivityType =
+  | "PLAN_UPDATED"
+  | "POSTED_TO_BOARD"
+  | "COST_ADDED";
+
+export interface IRecruitmentActivity {
+  type: RecruitmentActivityType;
+  text: string;
+  at?: string | null;
+}
+
 export interface IRecruitmentInfor {
   id: string;
 
@@ -31,9 +42,11 @@ export interface IRecruitmentInfor {
   rank?: any | null;
   contactPerson?: any | null;
 
-  recruitmentPlans?: any[];
-  recruitmentCosts?: any[];
+  recruitmentPlans?: IRecruitmentPlanParent[];
+  recruitmentCosts?: IRecruitmentCosts[];
   candidateRecruitments?: any[];
+
+  activities?: IRecruitmentActivity[];
 
   total_cost?: number | null;
   cost_currency?: string | null;
@@ -55,7 +68,7 @@ export type FormRecruitmentInforValues = {
   type_of_job: string;
   application_deadline: string; // "YYYY-MM-DD" (or "")
 
-  salary_from: string; // để string để input number dễ, submit convert number
+  salary_from: string; // keep as string for easier number input, convert on submit
   salary_to: string;
   salary_currency: string;
 
@@ -63,7 +76,7 @@ export type FormRecruitmentInforValues = {
   is_active: boolean;
   updated_at: string;
   created_at: string;
-  // don vi
+  // currency unit
   total_cost: number;
   cost_currency: string
 

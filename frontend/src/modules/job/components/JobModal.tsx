@@ -37,9 +37,11 @@ import type { IJob } from "../types";
 interface JobModalProps {
   isOpen: boolean;
   onClose: () => void;
-  mode: "add" | "edit";
+  mode: "add" | "edit" | "view";
   data?: IJob;
   onSuccess?: () => void;
+  fixedCandidates?: Array<{ id: string; name: string }>;
+  lockCandidateSelection?: boolean;
 }
 
 type JobFormValues = {
@@ -100,10 +102,19 @@ const normalizeJobStatus = (value?: string | null): JobStatusType => {
   return JOB_STATUS.IN_PROGRESS;
 };
 
-export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: JobModalProps) {
+export default function JobModal({
+  isOpen,
+  onClose,
+  mode,
+  data,
+  onSuccess,
+  fixedCandidates = [],
+  lockCandidateSelection = false,
+}: JobModalProps) {
   const notify = useNotify();
   const { mutateAsync: createJob } = useCreateJob();
   const { mutateAsync: updateJob } = useUpdateJob();
+  const isViewMode = mode === "view";
 
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [candidatePickerValue, setCandidatePickerValue] = useState("");
@@ -164,14 +175,33 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
     [candidateRes?.data],
   );
 
+  const mergedCandidateOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>();
+
+    fixedCandidates.forEach((candidate) => {
+      if (candidate.id) {
+        map.set(candidate.id, candidate);
+      }
+    });
+
+    candidateOptions.forEach((candidate) => {
+      if (candidate.id && !map.has(candidate.id)) {
+        map.set(candidate.id, candidate);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [fixedCandidates, candidateOptions]);
+
   const availableCandidateOptions = useMemo(
-    () => candidateOptions.filter((item) => !selectedCandidateIds.includes(item.id || "")),
-    [candidateOptions, selectedCandidateIds],
+    () =>
+      mergedCandidateOptions.filter((item) => !selectedCandidateIds.includes(item.id || "")),
+    [mergedCandidateOptions, selectedCandidateIds],
   );
 
   const selectedCandidates = useMemo(
-    () => candidateOptions.filter((item) => selectedCandidateIds.includes(item.id || "")),
-    [candidateOptions, selectedCandidateIds],
+    () => mergedCandidateOptions.filter((item) => selectedCandidateIds.includes(item.id || "")),
+    [mergedCandidateOptions, selectedCandidateIds],
   );
 
   useEffect(() => {
@@ -188,7 +218,9 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
   useEffect(() => {
     if (!isOpen) return;
 
-    if (mode === "edit" && data) {
+    const lockedCandidateIds = fixedCandidates.map((candidate) => candidate.id).filter(Boolean);
+
+    if ((mode === "edit" || mode === "view") && data) {
       reset({
         name_job: safeString(data.name_job),
         description_job: safeString(data.description_job),
@@ -201,22 +233,30 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
         status: normalizeJobStatus(data.result_job ?? data.status),
       });
 
-      setSelectedCandidateIds(data.jobCandidates?.map((item) => item.candidate_id) ?? []);
+      setSelectedCandidateIds(
+        lockCandidateSelection && lockedCandidateIds.length
+          ? lockedCandidateIds
+          : (data.jobCandidates?.map((item) => item.candidate_id) ?? [])
+      );
       setCandidatePickerValue("");
       return;
     }
 
     reset(defaultValues);
-    setSelectedCandidateIds([]);
+    setSelectedCandidateIds(lockCandidateSelection ? lockedCandidateIds : []);
     setCandidatePickerValue("");
-  }, [isOpen, mode, data, reset, defaultValues]);
+  }, [isOpen, mode, data, reset, defaultValues, fixedCandidates, lockCandidateSelection]);
 
   const handleRemoveCandidate = (candidateId: string) => {
     setSelectedCandidateIds((prev) => prev.filter((id) => id !== candidateId));
   };
 
   const onSubmit = async (values: JobFormValues) => {
+    if (isViewMode) return;
+
     setIsSubmittingForm(true);
+    const lockedCandidateIds = fixedCandidates.map((candidate) => candidate.id).filter(Boolean);
+    const candidateIds = lockCandidateSelection ? lockedCandidateIds : selectedCandidateIds;
 
     const normalizedStatusFromResult = normalizeJobStatus(values.result_job);
 
@@ -230,7 +270,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
       remind_enabled: Boolean(values.remind_enabled),
       remind_before_minutes: values.remind_enabled ? Number(values.remind_before_minutes || 30) : null,
       status: normalizedStatusFromResult,
-      candidate_ids: selectedCandidateIds,
+      candidate_ids: candidateIds,
     };
 
     try {
@@ -265,7 +305,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
       <ModalOverlay />
       <ModalContent maxW={{ base: "95%", md: "700px" }} w="100%" borderRadius="18px" maxH="85vh" overflow="auto">
         <ModalHeader color={theme.colors.primary} textAlign="center" fontWeight={700} fontSize="lg" py={4}>
-          {mode === "add" ? "ADD JOB" : "UPDATE JOB"}
+          {mode === "add" ? "ADD JOB" : mode === "edit" ? "UPDATE JOB" : "VIEW JOB"}
         </ModalHeader>
 
         <ModalCloseButton />
@@ -290,6 +330,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
                   placeholder="Enter job name"
                   borderColor="#d4d4d8cc"
                   size={CONTROL_SIZE}
+                  isReadOnly={isViewMode}
                   {...register("name_job", {
                     required: "Job name is required",
                     maxLength: { value: 200, message: "Max 200 characters" },
@@ -300,7 +341,12 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
 
               <FormControl isInvalid={!!errors.type_job}>
                 <LabelItem label="Job type" required fontSize={LABEL_FONT_SIZE} />
-                <Select borderColor="#d4d4d8cc" size={CONTROL_SIZE} {...register("type_job", { required: "Job type is required" })}>
+                <Select
+                  borderColor="#d4d4d8cc"
+                  size={CONTROL_SIZE}
+                  isDisabled={isViewMode}
+                  {...register("type_job", { required: "Job type is required" })}
+                >
                   {JOB_TYPE_OPTIONS.map((item) => (
                     <option key={item} value={item}>
                       {item}
@@ -312,7 +358,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
 
               <FormControl>
                 <LabelItem label="Execution result" fontSize={LABEL_FONT_SIZE} />
-                <Select borderColor="#d4d4d8cc" size={CONTROL_SIZE} {...register("result_job")}>
+                <Select borderColor="#d4d4d8cc" size={CONTROL_SIZE} isDisabled={isViewMode} {...register("result_job")}>
                   {RESULT_OPTIONS.map((item) => (
                     <option key={item} value={item}>
                       {item}
@@ -334,6 +380,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
                       options={employeeOptions}
                       size={CONTROL_SIZE}
                       placeholder="Select assignee..."
+                      isDisabled={isViewMode}
                     />
                   )}
                 />
@@ -342,7 +389,13 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
 
               <FormControl>
                 <LabelItem label="Deadline" fontSize={LABEL_FONT_SIZE} />
-                <Input type="datetime-local" borderColor="#d4d4d8cc" size={CONTROL_SIZE} {...register("deadline")} />
+                <Input
+                  type="datetime-local"
+                  borderColor="#d4d4d8cc"
+                  size={CONTROL_SIZE}
+                  isReadOnly={isViewMode}
+                  {...register("deadline")}
+                />
               </FormControl>
             </SimpleGrid>
 
@@ -354,6 +407,7 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
                 size={CONTROL_SIZE}
                 minH="120px"
                 resize="vertical"
+                isReadOnly={isViewMode}
                 {...register("description_job", {
                   maxLength: { value: 2000, message: "Max 2000 characters" },
                 })}
@@ -366,15 +420,17 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
             </Text>
 
             <VStack align="stretch" spacing={3}>
-              <SearchCombobox
-                value={candidatePickerValue}
-                onChange={setCandidatePickerValue}
-                options={availableCandidateOptions}
-                isLoading={isCandidateLoading}
-                size={CONTROL_SIZE}
-                placeholder="Search and add candidates..."
-                isClearable
-              />
+              {!lockCandidateSelection && !isViewMode && (
+                <SearchCombobox
+                  value={candidatePickerValue}
+                  onChange={setCandidatePickerValue}
+                  options={availableCandidateOptions}
+                  isLoading={isCandidateLoading}
+                  size={CONTROL_SIZE}
+                  placeholder="Search and add candidates..."
+                  isClearable
+                />
+              )}
 
               {selectedCandidates.length > 0 ? (
                 <HStack spacing={2} flexWrap="wrap">
@@ -392,13 +448,15 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
                       <Text fontSize="md" maxW="260px" noOfLines={1}>
                         {candidate.name}
                       </Text>
-                      <IconButton
-                        aria-label="Remove candidate"
-                        icon={<CloseIcon boxSize={2} />}
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => handleRemoveCandidate(candidate.id || "")}
-                      />
+                      {!lockCandidateSelection && !isViewMode && (
+                        <IconButton
+                          aria-label="Remove candidate"
+                          icon={<CloseIcon boxSize={2} />}
+                          size="xs"
+                          variant="ghost"
+                          onClick={() => handleRemoveCandidate(candidate.id || "")}
+                        />
+                      )}
                     </HStack>
                   ))}
                 </HStack>
@@ -416,11 +474,11 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
             </Text>
 
             <VStack align="stretch" spacing={3}>
-              <Checkbox colorScheme="blue" fontSize="md" {...register("remind_enabled")}>Remind before deadline</Checkbox>
+              <Checkbox colorScheme="blue" fontSize="md" isDisabled={isViewMode} {...register("remind_enabled")}>Remind before deadline</Checkbox>
 
               {remindEnabled && (
                 <FormControl>
-                  <Select borderColor="#d4d4d8cc" size={CONTROL_SIZE} {...register("remind_before_minutes", { valueAsNumber: true })}>
+                  <Select borderColor="#d4d4d8cc" size={CONTROL_SIZE} isDisabled={isViewMode} {...register("remind_before_minutes", { valueAsNumber: true })}>
                     {REMIND_OPTIONS.map((item) => (
                       <option key={item} value={item}>
                         {`Before ${item} minutes`}
@@ -434,11 +492,13 @@ export default function JobModal({ isOpen, onClose, mode, data, onSuccess }: Job
 
           <ModalFooter>
             <Button size={CONTROL_SIZE} mr={3} onClick={onClose}>
-              CANCEL
+              {isViewMode ? "CLOSE" : "CANCEL"}
             </Button>
-            <Button bg={theme.colors.primary} color={theme.colors.white} type="submit" isLoading={isSubmitting || isSubmittingForm} size={CONTROL_SIZE}>
-              {mode === "add" ? "ADD" : "UPDATE"}
-            </Button>
+            {!isViewMode && (
+              <Button bg={theme.colors.primary} color={theme.colors.white} type="submit" isLoading={isSubmitting || isSubmittingForm} size={CONTROL_SIZE}>
+                {mode === "add" ? "ADD" : "UPDATE"}
+              </Button>
+            )}
           </ModalFooter>
         </form>
       </ModalContent>
